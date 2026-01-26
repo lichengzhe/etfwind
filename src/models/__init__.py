@@ -9,6 +9,7 @@ from .schemas import (
     FundAdvice,
     SectorAnalysis,
     MarketOverview,
+    PolicyInsight,
     InvestmentReport,
 )
 
@@ -21,5 +22,6 @@ __all__ = [
     "FundAdvice",
     "SectorAnalysis",
     "MarketOverview",
+    "PolicyInsight",
     "InvestmentReport",
 ]

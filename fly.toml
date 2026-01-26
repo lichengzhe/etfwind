@@ -1,0 +1,14 @@
+app = "invest-report"
+primary_region = "sin"
+
+[build]
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+
+[mounts]
+  source = "data"
+  destination = "/app/data"

@@ -16,6 +16,7 @@ from src.models import (
     FundType,
     Sentiment,
     SectorAnalysis,
+    PolicyInsight,
 )
 from .prompts import INVESTMENT_ANALYSIS_PROMPT
 
@@ -63,6 +64,7 @@ class ClaudeAnalyzer:
         return InvestmentReport(
             period=period,
             market_overview=result["market_overview"],
+            policy_insights=result["policy_insights"],
             sector_analyses=result["sector_analyses"],
             fund_advices=result["fund_advices"],
             news_sources=news_with_url,
@@ -96,6 +98,7 @@ class ClaudeAnalyzer:
 
         return {
             "market_overview": self._parse_overview(data.get("market_overview", {})),
+            "policy_insights": self._parse_policies(data.get("policy_insights", [])),
             "sector_analyses": self._parse_sectors(data.get("sector_analyses", [])),
             "fund_advices": self._parse_advices(data.get("fund_advices", [])),
         }
@@ -107,6 +110,20 @@ class ClaudeAnalyzer:
             key_events=data.get("key_events", []),
             risk_factors=data.get("risk_factors", []),
         )
+
+    def _parse_policies(self, data: list) -> list[PolicyInsight]:
+        """解析政策解读"""
+        policies = []
+        for item in data:
+            policies.append(PolicyInsight(
+                title=item.get("title", ""),
+                background=item.get("background", ""),
+                impact=item.get("impact", ""),
+                opportunity=item.get("opportunity", ""),
+                risk=item.get("risk", ""),
+                action=item.get("action", ""),
+            ))
+        return policies
 
     def _parse_sectors(self, data: list) -> list[SectorAnalysis]:
         """解析行业分析"""
@@ -165,6 +182,7 @@ class ClaudeAnalyzer:
                 key_events=[],
                 risk_factors=[],
             ),
+            "policy_insights": [],
             "sector_analyses": [],
             "fund_advices": [],
         }

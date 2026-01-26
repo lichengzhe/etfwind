@@ -75,11 +75,22 @@ class MarketOverview(BaseModel):
     risk_factors: list[str] = Field(default_factory=list, description="风险因素")
 
 
+class PolicyInsight(BaseModel):
+    """政策解读"""
+    title: str = Field(..., description="政策/事件标题")
+    background: str = Field(..., description="背景说明")
+    impact: str = Field(..., description="市场影响分析")
+    opportunity: str = Field(..., description="投资机会")
+    risk: str = Field(..., description="潜在风险")
+    action: str = Field(..., description="操作建议")
+
+
 class InvestmentReport(BaseModel):
     """投资报告"""
     period: str = Field(..., description="报告周期: morning/evening")
     generated_at: datetime = Field(default_factory=datetime.now)
     market_overview: MarketOverview = Field(..., description="市场概览")
+    policy_insights: list[PolicyInsight] = Field(default_factory=list, description="政策解读")
     sector_analyses: list[SectorAnalysis] = Field(default_factory=list, description="行业分析")
     fund_advices: list[FundAdvice] = Field(default_factory=list, description="基金建议")
     news_sources: list["NewsItem"] = Field(default_factory=list, description="新闻来源")
