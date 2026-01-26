@@ -1,0 +1,54 @@
+name: Daily Investment News
+
+on:
+  schedule:
+    # UTC 00:00 = 北京时间 08:00 (早盘)
+    - cron: '0 0 * * 1-5'
+    # UTC 10:00 = 北京时间 18:00 (晚盘)
+    - cron: '0 10 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      period:
+        description: '报告周期'
+        required: true
+        default: 'morning'
+        type: choice
+        options:
+          - morning
+          - evening
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Determine period
+        id: period
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ inputs.period }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 0 * * 1-5" ]; then
+            echo "value=morning" >> $GITHUB_OUTPUT
+          else
+            echo "value=evening" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Run analysis on Fly.io
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl ssh console -a invest-report -C "python src/main.py --period ${{ steps.period.outputs.value }}"
