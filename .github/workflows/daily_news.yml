@@ -51,4 +51,4 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          flyctl ssh console -a invest-report -C "cd /app && PYTHONPATH=/app python src/main.py --period ${{ steps.period.outputs.value }}"
+          flyctl ssh console -a invest-report -C "sh -c 'cd /app && PYTHONPATH=/app python src/main.py --period ${{ steps.period.outputs.value }}'"
