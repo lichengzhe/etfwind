@@ -11,14 +11,16 @@ from src.config import settings
 from src.models import (
     NewsCollection,
     InvestmentReport,
-    MarketOverview,
-    FundAdvice,
-    FundType,
-    Sentiment,
-    SectorAnalysis,
+    GlobalEvent,
+    SectorOpportunity,
+    PositionAdvice,
     PolicyInsight,
 )
-from .prompts import INVESTMENT_ANALYSIS_PROMPT
+from .prompts import SYSTEM_PROMPT, INVESTMENT_ANALYSIS_PROMPT
+
+MAX_NEWS_SOURCES = 20
+MAX_NEWS_FOR_ANALYSIS = 30
+MAX_RETRIES = 3
 
 
 class ClaudeAnalyzer:
@@ -38,42 +40,64 @@ class ClaudeAnalyzer:
 
         logger.info(f"开始 AI 分析，新闻数量: {news.count}")
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            response = await client.post(
-                f"{self.base_url}/v1/messages",
-                headers={
-                    "Content-Type": "application/json",
-                    "x-api-key": self.api_key,
-                    "anthropic-version": "2023-06-01",
-                },
-                json={
-                    "model": self.model,
-                    "max_tokens": 4096,
-                    "messages": [{"role": "user", "content": prompt}],
-                },
-            )
-            response.raise_for_status()
-            data = response.json()
-
-        content = data["content"][0]["text"]
+        content = await self._call_api_with_retry(prompt)
         result = self._parse_response(content)
 
-        # 取前30条有链接的新闻作为来源
-        news_with_url = [n for n in news.items[:30] if n.url]
+        news_with_url = [n for n in news.items[:MAX_NEWS_SOURCES] if n.url]
 
         return InvestmentReport(
             period=period,
-            market_overview=result["market_overview"],
+            one_liner=result["one_liner"],
+            market_emotion=result["market_emotion"],
+            emotion_suggestion=result["emotion_suggestion"],
+            global_events=result["global_events"],
+            sector_opportunities=result["sector_opportunities"],
             policy_insights=result["policy_insights"],
-            sector_analyses=result["sector_analyses"],
-            fund_advices=result["fund_advices"],
+            position_advices=result["position_advices"],
+            risk_warnings=result["risk_warnings"],
             news_sources=news_with_url,
         )
+
+    async def _call_api_with_retry(self, prompt: str) -> str:
+        """调用 API，带重试机制"""
+        last_error = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                async with httpx.AsyncClient(timeout=120.0) as client:
+                    response = await client.post(
+                        f"{self.base_url}/v1/messages",
+                        headers={
+                            "Content-Type": "application/json",
+                            "x-api-key": self.api_key,
+                            "anthropic-version": "2023-06-01",
+                        },
+                        json={
+                            "model": self.model,
+                            "max_tokens": 4096,
+                            "system": SYSTEM_PROMPT,
+                            "messages": [{"role": "user", "content": prompt}],
+                        },
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                    return data["content"][0]["text"]
+            except httpx.HTTPStatusError as e:
+                last_error = e
+                logger.warning(f"API 调用失败 (尝试 {attempt + 1}/{MAX_RETRIES}): {e}")
+                if e.response.status_code >= 500:
+                    continue
+                raise
+            except httpx.RequestError as e:
+                last_error = e
+                logger.warning(f"网络错误 (尝试 {attempt + 1}/{MAX_RETRIES}): {e}")
+                continue
+        logger.error(f"API 调用失败，已重试 {MAX_RETRIES} 次")
+        raise last_error or Exception("API 调用失败")
 
     def _format_news(self, news: NewsCollection) -> str:
         """格式化新闻内容"""
         lines = []
-        for i, item in enumerate(news.items[:30], 1):
+        for i, item in enumerate(news.items[:MAX_NEWS_FOR_ANALYSIS], 1):
             time_str = ""
             if item.published_at:
                 time_str = item.published_at.strftime("%H:%M")
@@ -97,19 +121,42 @@ class ClaudeAnalyzer:
             return self._default_result()
 
         return {
-            "market_overview": self._parse_overview(data.get("market_overview", {})),
+            "one_liner": data.get("one_liner", "暂无建议"),
+            "market_emotion": data.get("market_emotion", 50),
+            "emotion_suggestion": data.get("emotion_suggestion", ""),
+            "global_events": self._parse_events(data.get("global_events", [])),
+            "sector_opportunities": self._parse_sectors(data.get("sector_opportunities", [])),
             "policy_insights": self._parse_policies(data.get("policy_insights", [])),
-            "sector_analyses": self._parse_sectors(data.get("sector_analyses", [])),
-            "fund_advices": self._parse_advices(data.get("fund_advices", [])),
+            "position_advices": self._parse_positions(data.get("position_advices", [])),
+            "risk_warnings": data.get("risk_warnings", []),
         }
 
-    def _parse_overview(self, data: dict) -> MarketOverview:
-        """解析市场概览"""
-        return MarketOverview(
-            summary=data.get("summary", "暂无市场总结"),
-            key_events=data.get("key_events", []),
-            risk_factors=data.get("risk_factors", []),
-        )
+    def _parse_events(self, data: list) -> list[GlobalEvent]:
+        """解析全球事件"""
+        events = []
+        for item in data:
+            events.append(GlobalEvent(
+                event=item.get("event", ""),
+                region=item.get("region", ""),
+                a_stock_impact=item.get("a_stock_impact", ""),
+                affected_sectors=item.get("affected_sectors", []),
+            ))
+        return events
+
+    def _parse_sectors(self, data: list) -> list[SectorOpportunity]:
+        """解析板块机会"""
+        sectors = []
+        for item in data:
+            sectors.append(SectorOpportunity(
+                name=item.get("name", ""),
+                signal=item.get("signal", "观望"),
+                heat=item.get("heat", 50),
+                crowding=item.get("crowding", 50),
+                logic=item.get("logic", ""),
+                contrarian_note=item.get("contrarian_note", ""),
+                key_etf=item.get("key_etf", []),
+            ))
+        return sectors
 
     def _parse_policies(self, data: list) -> list[PolicyInsight]:
         """解析政策解读"""
@@ -117,72 +164,35 @@ class ClaudeAnalyzer:
         for item in data:
             policies.append(PolicyInsight(
                 title=item.get("title", ""),
-                background=item.get("background", ""),
-                impact=item.get("impact", ""),
-                opportunity=item.get("opportunity", ""),
-                risk=item.get("risk", ""),
-                action=item.get("action", ""),
+                summary=item.get("summary", ""),
+                investment_logic=item.get("investment_logic", ""),
+                contrarian_view=item.get("contrarian_view", ""),
+                action_suggestion=item.get("action_suggestion", ""),
+                related_sectors=item.get("related_sectors", []),
             ))
         return policies
 
-    def _parse_sectors(self, data: list) -> list[SectorAnalysis]:
-        """解析行业分析"""
-        sentiment_map = {
-            "看多": Sentiment.BULLISH,
-            "看空": Sentiment.BEARISH,
-            "观望": Sentiment.NEUTRAL,
-        }
-        sectors = []
+    def _parse_positions(self, data: list) -> list[PositionAdvice]:
+        """解析仓位建议"""
+        positions = []
         for item in data:
-            sentiment = sentiment_map.get(item.get("sentiment"), Sentiment.NEUTRAL)
-            sectors.append(SectorAnalysis(
-                name=item.get("name", ""),
-                sentiment=sentiment,
-                heat=item.get("heat", 50),
+            positions.append(PositionAdvice(
+                asset_type=item.get("asset_type", ""),
+                current_position=item.get("current_position", "标配"),
+                change=item.get("change", "持有"),
                 reason=item.get("reason", ""),
-                related_news=item.get("related_news", []),
-                key_stocks=item.get("key_stocks", []),
             ))
-        return sectors
-
-    def _parse_advices(self, data: list) -> list[FundAdvice]:
-        """解析基金建议"""
-        advices = []
-        type_map = {
-            "股票型": FundType.STOCK,
-            "债券型": FundType.BOND,
-            "混合型": FundType.MIXED,
-            "指数/ETF": FundType.INDEX,
-        }
-        sentiment_map = {
-            "看多": Sentiment.BULLISH,
-            "看空": Sentiment.BEARISH,
-            "观望": Sentiment.NEUTRAL,
-        }
-
-        for item in data:
-            fund_type = type_map.get(item.get("fund_type"))
-            sentiment = sentiment_map.get(item.get("sentiment"))
-            if fund_type and sentiment:
-                advices.append(
-                    FundAdvice(
-                        fund_type=fund_type,
-                        sentiment=sentiment,
-                        reason=item.get("reason", ""),
-                        attention_points=item.get("attention_points", []),
-                    )
-                )
-        return advices
+        return positions
 
     def _default_result(self) -> dict[str, Any]:
         """默认结果"""
         return {
-            "market_overview": MarketOverview(
-                summary="AI 分析暂时不可用",
-                key_events=[],
-                risk_factors=[],
-            ),
+            "one_liner": "AI 分析暂时不可用",
+            "market_emotion": 50,
+            "emotion_suggestion": "",
+            "global_events": [],
+            "sector_opportunities": [],
             "policy_insights": [],
-            "sector_analyses": [],
-            "fund_advices": [],
+            "position_advices": [],
+            "risk_warnings": [],
         }
