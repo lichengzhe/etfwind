@@ -49,11 +49,16 @@ class NewsAggregator:
                 seen_titles.add(item.title)
                 unique_items.append(item)
 
-        # 按时间排序
-        unique_items.sort(
-            key=lambda x: x.published_at or datetime.min,
-            reverse=True
-        )
+        # 按时间排序（处理时区混合问题）
+        def get_sort_key(x):
+            if x.published_at is None:
+                return datetime.min
+            # 移除时区信息以便比较
+            if x.published_at.tzinfo is not None:
+                return x.published_at.replace(tzinfo=None)
+            return x.published_at
+
+        unique_items.sort(key=get_sort_key, reverse=True)
 
         logger.info(f"共采集 {len(unique_items)} 条去重新闻")
 
