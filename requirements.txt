@@ -21,4 +21,6 @@ click>=8.0.0
 fastapi>=0.115.0
 uvicorn>=0.32.0
 jinja2>=3.1.0
-aiosqlite>=0.20.0
+
+# Database
+supabase>=2.0.0
