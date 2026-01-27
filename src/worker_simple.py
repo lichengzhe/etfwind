@@ -50,6 +50,23 @@ async def run():
     output_file.write_text(json.dumps(output, ensure_ascii=False, indent=2))
     logger.info(f"结果已保存到 {output_file}")
 
+    # 保存原始新闻列表
+    news_list = [
+        {
+            "title": item.title,
+            "source": item.source,
+            "url": item.url,
+            "published_at": item.published_at.isoformat() if item.published_at else None,
+        }
+        for item in news.items
+    ]
+    news_file = DATA_DIR / "news.json"
+    news_file.write_text(json.dumps({
+        "news": news_list,
+        "updated_at": datetime.now(beijing_tz).isoformat(),
+    }, ensure_ascii=False, indent=2))
+    logger.info(f"新闻列表已保存到 {news_file}")
+
     # 生成 ETF 板块映射（每天一次）
     await fetch_etf_map()
 
