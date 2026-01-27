@@ -1,13 +1,11 @@
 """简化版投资分析 - 无数据库，实时分析"""
 
-import asyncio
-import os
 import json
 from datetime import datetime, timezone, timedelta
-from typing import Optional
 from loguru import logger
 import httpx
 
+from src.config import settings
 from src.models import NewsItem
 from src.collectors import NewsAggregator
 
@@ -60,9 +58,9 @@ async def collect_news() -> list[NewsItem]:
 
 async def analyze(items: list[NewsItem]) -> dict:
     """AI分析新闻"""
-    base_url = os.getenv("CLAUDE_BASE_URL", "https://api.anthropic.com")
-    api_key = os.getenv("CLAUDE_API_KEY")
-    model = os.getenv("CLAUDE_MODEL", "claude-opus-4-5")
+    base_url = settings.claude_base_url.rstrip("/")
+    api_key = settings.claude_api_key
+    model = settings.claude_model
 
     news_list = "\n".join([
         f"{i+1}. [{item.source}] {item.title}"
