@@ -53,7 +53,12 @@ INVESTMENT_ANALYSIS_PROMPT = """请根据以下财经新闻，生成投资决策
   "risk_warnings": [
     "注意：市场情绪过热时往往是阶段顶部",
     "警惕：某某板块连续上涨后获利盘压力大"
-  ]
+  ],
+  "action_summary": {{
+    "buy": [{{"sector": "半导体", "fund": "华夏半导体ETF(159995)", "reason": "AI芯片持续催化"}}],
+    "hold": [{{"sector": "医药", "reason": "等待回调"}}],
+    "avoid": [{{"sector": "地产", "reason": "风险持续暴露"}}]
+  }}
 }}
 ```
 
@@ -66,6 +71,7 @@ INVESTMENT_ANALYSIS_PROMPT = """请根据以下财经新闻，生成投资决策
 - related_funds：推荐1-2只相关ETF/LOF，只需代码和名称
 - sources：必须使用新闻内容中提供的完整URL，不要编造或简化链接
 - position_advices 必须包含股票、债券、货币、黄金四类资产
+- action_summary 汇总今日操作建议：buy（建议买入的板块和ETF）、hold（建议观望）、avoid（建议回避）
 - 所有建议针对A股市场
 """
 
