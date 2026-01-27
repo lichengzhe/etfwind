@@ -165,6 +165,7 @@ class FundService:
                         if isinstance(kline_data, dict):
                             result[code]["change_5d"] = kline_data.get("change_5d", 0)
                             result[code]["change_20d"] = kline_data.get("change_20d", 0)
+                            result[code]["kline"] = kline_data.get("kline", [])
 
                 return result
         except Exception as e:
@@ -172,7 +173,7 @@ class FundService:
             return {}
 
     async def _get_kline_changes(self, client, secid: str) -> dict:
-        """获取K线计算5日和20日涨跌幅"""
+        """获取K线计算5日和20日涨跌幅，返回近20日收盘价"""
         try:
             resp = await client.get(
                 "https://push2his.eastmoney.com/api/qt/stock/kline/get",
@@ -191,20 +192,26 @@ class FundService:
                 return {}
 
             # kline格式: 日期,开,收,高,低,成交量
-            today_close = float(klines[-1].split(",")[2])
+            closes = [float(k.split(",")[2]) for k in klines]
+            today_close = closes[-1]
 
             change_5d = 0
             change_20d = 0
 
-            if len(klines) >= 6:
-                close_5d = float(klines[-6].split(",")[2])
-                change_5d = round((today_close - close_5d) / close_5d * 100, 2)
+            if len(closes) >= 6:
+                change_5d = round((today_close - closes[-6]) / closes[-6] * 100, 2)
 
-            if len(klines) >= 21:
-                close_20d = float(klines[-21].split(",")[2])
-                change_20d = round((today_close - close_20d) / close_20d * 100, 2)
+            if len(closes) >= 21:
+                change_20d = round((today_close - closes[-21]) / closes[-21] * 100, 2)
 
-            return {"change_5d": change_5d, "change_20d": change_20d}
+            # 返回近20日收盘价用于sparkline
+            kline_data = closes[-20:] if len(closes) >= 20 else closes
+
+            return {
+                "change_5d": change_5d,
+                "change_20d": change_20d,
+                "kline": kline_data,
+            }
         except Exception:
             return {}
 

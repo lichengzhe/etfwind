@@ -9,6 +9,9 @@ COPY . .
 
 RUN pip install --no-cache-dir .
 
+# 安装 Playwright 依赖和 Chromium
+RUN playwright install-deps chromium && playwright install chromium
+
 RUN mkdir -p /app/data
 
 EXPOSE 8080
