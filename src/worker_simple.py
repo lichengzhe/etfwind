@@ -34,6 +34,9 @@ async def run():
     logger.info("开始 AI 分析...")
     result = await analyze(news.items)
 
+    # 为每个板块匹配 ETF
+    await enrich_sectors_with_etfs(result)
+
     # 保存结果
     beijing_tz = timezone(timedelta(hours=8))
     output = {
@@ -47,58 +50,58 @@ async def run():
     output_file.write_text(json.dumps(output, ensure_ascii=False, indent=2))
     logger.info(f"结果已保存到 {output_file}")
 
-    # 抓取基金数据
-    await fetch_fund_data(result)
-
-    # 生成 ETF 板块映射
+    # 生成 ETF 板块映射（每天一次）
     await fetch_etf_map()
 
     return output
 
 
-async def fetch_fund_data(result: dict):
-    """根据分析结果中的板块，动态获取相关ETF数据"""
+async def enrich_sectors_with_etfs(result: dict):
+    """为每个板块匹配交易量最大的3个ETF"""
     sectors = result.get("sectors", [])
     if not sectors:
-        logger.info("没有板块数据")
         return
 
-    # 获取板块映射
+    # 获取板块->ETF映射
     sector_map = await fund_service.get_sector_etf_map()
     if not sector_map:
         logger.warning("无法获取板块映射")
         return
 
-    # 收集所有相关板块的ETF代码
-    codes = set()
+    # 收集需要查询的ETF代码
+    codes_to_fetch = set()
+    sector_etf_mapping = {}
+
     for sector in sectors:
         sector_name = sector.get("name", "")
         for key, etfs in sector_map.items():
             if key in sector_name or sector_name in key:
-                for code, name in etfs[:3]:  # 每个板块取前3个
-                    codes.add(code)
+                codes = [code for code, name in etfs[:3]]
+                sector_etf_mapping[sector_name] = codes
+                codes_to_fetch.update(codes)
                 break
 
-    if not codes:
+    if not codes_to_fetch:
         logger.info("没有匹配到ETF代码")
         return
 
-    logger.info(f"抓取 {len(codes)} 个基金数据: {codes}")
+    # 批量获取ETF实时数据
+    logger.info(f"获取 {len(codes_to_fetch)} 个ETF数据")
+    fund_data = await fund_service.batch_get_funds(list(codes_to_fetch))
 
-    try:
-        fund_data = await fund_service.batch_get_funds(list(codes))
+    # 为每个板块添加ETF信息
+    for sector in sectors:
+        sector_name = sector.get("name", "")
+        codes = sector_etf_mapping.get(sector_name, [])
+        etfs = []
+        for code in codes:
+            if code in fund_data:
+                etfs.append(fund_data[code])
+        # 按成交额排序
+        etfs.sort(key=lambda x: x.get("amount_yi", 0), reverse=True)
+        sector["etfs"] = etfs[:3]
 
-        # 保存基金数据
-        funds_file = DATA_DIR / "funds.json"
-        beijing_tz = timezone(timedelta(hours=8))
-        output = {
-            "funds": fund_data,
-            "updated_at": datetime.now(beijing_tz).isoformat(),
-        }
-        funds_file.write_text(json.dumps(output, ensure_ascii=False, indent=2))
-        logger.info(f"基金数据已保存到 {funds_file}")
-    except Exception as e:
-        logger.warning(f"抓取基金数据失败: {e}")
+    logger.info("板块ETF匹配完成")
 
 
 async def fetch_etf_map():
