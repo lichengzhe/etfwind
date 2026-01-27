@@ -136,38 +136,49 @@ class FundService:
             except Exception as e:
                 logger.warning(f"批量API请求失败: {e}，重试 {attempt + 1}/{max_retries}")
 
-        # 批量失败，回退到单个查询
-        logger.info("批量API失败，回退到单个查询")
-        return await self._fetch_individual(client, secids)
+        # 批量失败，回退到新浪API
+        logger.info("东方财富API失败，回退到新浪财经API")
+        return await self._fetch_from_sina(client, secids)
 
-    async def _fetch_individual(self, client, secids: list) -> list:
-        """单个查询作为回退方案"""
-        results = []
+    async def _fetch_from_sina(self, client, secids: list) -> list:
+        """使用新浪财经API作为回退方案"""
+        # 转换 secid 为新浪格式: 1.518880 -> sh518880, 0.159915 -> sz159915
+        sina_codes = []
         for secid in secids:
-            try:
-                await asyncio.sleep(0.5)  # 避免请求过快
-                resp = await client.get(
-                    "https://push2.eastmoney.com/api/qt/stock/get",
-                    params={
-                        "secid": secid,
-                        "fields": "f43,f57,f58,f170,f47,f48,f62,f184,f8",
-                    },
-                )
-                data = resp.json().get("data", {})
-                if data:
-                    results.append({
-                        "f12": data.get("f57", ""),
-                        "f14": data.get("f58", ""),
-                        "f2": data.get("f43", 0),
-                        "f3": data.get("f170", 0),
-                        "f6": data.get("f48", 0),
-                        "f8": data.get("f8", 0),
-                        "f62": data.get("f62", 0),
-                        "f184": data.get("f184", 0),
-                    })
-            except Exception as e:
-                logger.warning(f"单个查询 {secid} 失败: {e}")
-        return results
+            market, code = secid.split(".")
+            prefix = "sh" if market == "1" else "sz"
+            sina_codes.append(f"{prefix}{code}")
+
+        try:
+            resp = await client.get(
+                f"https://hq.sinajs.cn/list={','.join(sina_codes)}",
+                headers={"Referer": "https://finance.sina.com.cn"},
+            )
+            text = resp.text
+            results = []
+            for line in text.strip().split("\n"):
+                if "=" not in line or '""' in line:
+                    continue
+                # 解析: var hq_str_sh518880="黄金ETF,10.883,..."
+                var_part, data_part = line.split("=", 1)
+                code = var_part.split("_")[-1][2:]  # 去掉 sh/sz 前缀
+                data = data_part.strip('"').strip(";").split(",")
+                if len(data) < 10:
+                    continue
+                results.append({
+                    "f12": code,
+                    "f14": data[0],  # 名称
+                    "f2": int(float(data[3]) * 1000),  # 当前价 * 1000
+                    "f3": int((float(data[3]) - float(data[2])) / float(data[2]) * 10000) if float(data[2]) else 0,  # 涨跌幅 * 100
+                    "f6": int(float(data[9])),  # 成交额
+                    "f8": 0,  # 换手率（新浪无此数据）
+                    "f62": 0,  # 主力流入（新浪无此数据）
+                    "f184": 0,  # 主力占比（新浪无此数据）
+                })
+            return results
+        except Exception as e:
+            logger.warning(f"新浪API也失败: {e}")
+            return []
 
     async def batch_get_funds(self, codes: list[str]) -> dict[str, dict]:
         """批量获取基金信息（实时行情+多周期涨跌幅）"""
