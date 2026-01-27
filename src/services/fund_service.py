@@ -1,11 +1,14 @@
 """基金数据服务 - 获取 ETF/LOF 实时行情和历史数据"""
 
 import asyncio
+import json
 import re
 import time
 import httpx
 from loguru import logger
 from typing import Optional
+
+from src.config import settings
 
 # 板块关键词映射（用于从 ETF 名称中提取板块）
 # 格式: 板块名 -> [关键词列表]
@@ -166,35 +169,84 @@ class FundService:
                 all_etfs = []
         return all_etfs
 
-    async def _fetch_etf_desc(self, client: httpx.AsyncClient, code: str) -> str:
-        """获取 ETF 描述（基金全称、成立日期、管理人、经理）"""
+    async def _fetch_etf_raw_info(self, client: httpx.AsyncClient, code: str) -> dict:
+        """获取 ETF 原始信息"""
         try:
             url = f"https://fundf10.eastmoney.com/jbgk_{code}.html"
             resp = await client.get(url, timeout=10)
             text = resp.text
 
-            parts = []
+            info = {}
             # 基金全称
             m = re.search(r'基金全称</th><td[^>]*>([^<]+)', text)
             if m:
-                parts.append(f"基金名称：{m.group(1).strip()}")
-            # 成立日期
-            m = re.search(r'成立日期/规模</th><td[^>]*>([^/]+)', text)
+                info["full_name"] = m.group(1).strip()
+            # 基金简称
+            m = re.search(r'基金简称</th><td[^>]*>([^<]+)', text)
             if m:
-                parts.append(f"成立日期：{m.group(1).strip()}")
+                info["short_name"] = m.group(1).strip()
             # 基金管理人
             m = re.search(r'基金管理人</th><td[^>]*><a[^>]*>([^<]+)', text)
             if m:
-                parts.append(f"基金管理人：{m.group(1).strip()}")
-            # 基金经理
-            m = re.search(r'基金经理人</th><td[^>]*><a[^>]*>([^<]+)', text)
+                info["manager"] = m.group(1).strip()
+            # 投资范围
+            m = re.search(r'投资范围</label>.*?<p>\s*(.+?)\s*</p>', text, re.DOTALL)
             if m:
-                parts.append(f"基金经理：{m.group(1).strip()}")
-
-            return "\n".join(parts) if parts else ""
+                info["scope"] = m.group(1).strip()
+            # 风险收益特征
+            m = re.search(r'风险收益特征</label>.*?<p>\s*(.+?)\s*</p>', text, re.DOTALL)
+            if m:
+                info["risk"] = m.group(1).strip()
+            return info
         except Exception:
             pass
-        return ""
+        return {}
+
+    async def _summarize_etf_desc(self, client: httpx.AsyncClient, etf_infos: list[dict]) -> dict[str, str]:
+        """用 AI 批量精炼 ETF 描述"""
+        if not etf_infos:
+            return {}
+
+        etf_list = "\n".join([
+            f"- {info['code']}: 全称={info.get('full_name','')}, "
+            f"简称={info.get('short_name','')}, "
+            f"管理人={info.get('manager','')}, "
+            f"投资范围={info.get('scope','')[:200] if info.get('scope') else ''}, "
+            f"风险特征={info.get('risk','')[:150] if info.get('risk') else ''}"
+            for info in etf_infos
+        ])
+
+        prompt = f"""为以下ETF生成简洁描述（每个30-50字），突出投资标的和风险特征。
+
+{etf_list}
+
+输出JSON格式：{{"代码": "描述", ...}}"""
+
+        try:
+            resp = await client.post(
+                f"{settings.claude_base_url.rstrip('/')}/v1/messages",
+                headers={
+                    "Content-Type": "application/json",
+                    "x-api-key": settings.claude_api_key,
+                    "anthropic-version": "2023-06-01",
+                },
+                json={
+                    "model": settings.claude_model,
+                    "max_tokens": 2048,
+                    "messages": [{"role": "user", "content": prompt}]
+                },
+                timeout=60,
+            )
+            resp.raise_for_status()
+            text = resp.json()["content"][0]["text"].strip()
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0]
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0]
+            return json.loads(text)
+        except Exception as e:
+            logger.warning(f"AI精炼描述失败: {e}")
+            return {}
 
     def _classify_etf(self, name: str) -> Optional[str]:
         """根据 ETF 名称识别所属板块"""
@@ -292,22 +344,28 @@ class FundService:
                         "desc": "",
                     }
 
-        # 批量获取描述（限制并发）
-        logger.info(f"获取 {len(result_etfs)} 个ETF的描述...")
-        async with httpx.AsyncClient(headers=self.headers) as client:
+        # 批量获取原始信息
+        logger.info(f"获取 {len(result_etfs)} 个ETF的信息...")
+        async with httpx.AsyncClient(headers=self.headers, timeout=30) as client:
             sem = asyncio.Semaphore(5)
 
-            async def fetch_desc(code):
+            async def fetch_info(code):
                 async with sem:
-                    return code, await self._fetch_etf_desc(client, code)
+                    info = await self._fetch_etf_raw_info(client, code)
+                    info["code"] = code
+                    return info
 
-            tasks = [fetch_desc(code) for code in result_etfs.keys()]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+            tasks = [fetch_info(code) for code in result_etfs.keys()]
+            raw_infos = await asyncio.gather(*tasks, return_exceptions=True)
+            raw_infos = [r for r in raw_infos if isinstance(r, dict) and r.get("code")]
 
-            for r in results:
-                if isinstance(r, tuple):
-                    code, desc = r
-                    if desc and code in result_etfs:
+            # AI 批量精炼描述（每批20个）
+            logger.info("AI精炼描述...")
+            for i in range(0, len(raw_infos), 20):
+                batch = raw_infos[i:i+20]
+                descs = await self._summarize_etf_desc(client, batch)
+                for code, desc in descs.items():
+                    if code in result_etfs:
                         result_etfs[code]["desc"] = desc
 
         return {"etfs": result_etfs, "sectors": result_sectors}
