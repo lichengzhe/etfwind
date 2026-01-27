@@ -1,0 +1,38 @@
+name: Daily Investment News
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  collect-and-analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install .
+
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
+      - name: Run collection and analysis
+        env:
+          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          CLAUDE_BASE_URL: ${{ secrets.CLAUDE_BASE_URL }}
+        run: python -m src.worker_simple
+
+      - name: Commit and push results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/web/data/latest.json
+          git diff --staged --quiet || git commit -m "Update analysis $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push

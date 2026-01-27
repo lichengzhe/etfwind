@@ -9,6 +9,7 @@ venv/
 # 数据文件
 data/
 !data/latest.json
+!src/web/data/
 
 # 报告文件
 reports/
