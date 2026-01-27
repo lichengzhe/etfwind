@@ -1,5 +1,6 @@
 """基金数据服务 - 获取 ETF/LOF 实时行情和历史数据"""
 
+import asyncio
 import time
 import httpx
 from loguru import logger
@@ -10,10 +11,12 @@ class FundService:
     """基金数据服务"""
 
     def __init__(self):
-        self.timeout = 10.0
+        self.timeout = 15.0
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Referer": "https://quote.eastmoney.com/",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
         }
         # K线缓存: {secid: (timestamp, data)}
         self._kline_cache: dict[str, tuple[float, dict]] = {}
@@ -108,6 +111,64 @@ class FundService:
         else:
             return "冷清"
 
+    async def _fetch_batch_with_retry(self, client, secids: list, max_retries: int = 3) -> list:
+        """带重试的批量获取，失败时回退到单个查询"""
+        for attempt in range(max_retries):
+            try:
+                if attempt > 0:
+                    await asyncio.sleep(1 * attempt)  # 递增延迟
+                resp = await client.get(
+                    "https://push2.eastmoney.com/api/qt/ulist.np/get",
+                    params={
+                        "secids": ",".join(secids),
+                        "fields": "f12,f14,f2,f3,f6,f8,f62,f184",
+                    },
+                )
+                text = resp.text
+                if not text or text.strip() == "":
+                    logger.warning(f"批量API返回空响应，重试 {attempt + 1}/{max_retries}")
+                    continue
+                data = resp.json().get("data", {})
+                diff = data.get("diff", [])
+                if diff:
+                    return diff
+                logger.warning(f"批量API返回空数据，重试 {attempt + 1}/{max_retries}")
+            except Exception as e:
+                logger.warning(f"批量API请求失败: {e}，重试 {attempt + 1}/{max_retries}")
+
+        # 批量失败，回退到单个查询
+        logger.info("批量API失败，回退到单个查询")
+        return await self._fetch_individual(client, secids)
+
+    async def _fetch_individual(self, client, secids: list) -> list:
+        """单个查询作为回退方案"""
+        results = []
+        for secid in secids:
+            try:
+                await asyncio.sleep(0.5)  # 避免请求过快
+                resp = await client.get(
+                    "https://push2.eastmoney.com/api/qt/stock/get",
+                    params={
+                        "secid": secid,
+                        "fields": "f43,f57,f58,f170,f47,f48,f62,f184,f8",
+                    },
+                )
+                data = resp.json().get("data", {})
+                if data:
+                    results.append({
+                        "f12": data.get("f57", ""),
+                        "f14": data.get("f58", ""),
+                        "f2": data.get("f43", 0),
+                        "f3": data.get("f170", 0),
+                        "f6": data.get("f48", 0),
+                        "f8": data.get("f8", 0),
+                        "f62": data.get("f62", 0),
+                        "f184": data.get("f184", 0),
+                    })
+            except Exception as e:
+                logger.warning(f"单个查询 {secid} 失败: {e}")
+        return results
+
     async def batch_get_funds(self, codes: list[str]) -> dict[str, dict]:
         """批量获取基金信息（实时行情+多周期涨跌幅）"""
         if not codes:
@@ -126,16 +187,8 @@ class FundService:
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout, headers=self.headers) as client:
-                # 1. 批量获取实时行情（含资金流向）
-                resp = await client.get(
-                    "https://push2.eastmoney.com/api/qt/ulist.np/get",
-                    params={
-                        "secids": ",".join(secids),
-                        "fields": "f12,f14,f2,f3,f6,f8,f62,f184",
-                    },
-                )
-                data = resp.json().get("data", {})
-                diff = data.get("diff", [])
+                # 1. 批量获取实时行情（含资金流向），带重试
+                diff = await self._fetch_batch_with_retry(client, secids)
 
                 result = {}
                 for item in diff:
@@ -160,7 +213,6 @@ class FundService:
                         }
 
                 # 2. 并发获取K线计算多周期涨跌幅
-                import asyncio
                 tasks = []
                 for code in result.keys():
                     tasks.append(self._get_kline_changes(client, code_to_secid.get(code, "")))
