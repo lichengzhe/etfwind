@@ -81,10 +81,55 @@ class FundService:
         self._etf_cache_ttl = 86400  # 24小时
 
     async def _fetch_all_etfs(self) -> list[dict]:
-        """从东方财富获取所有 ETF 列表（分页获取，带重试）"""
+        """获取所有 ETF 列表（新浪为主，东方财富为备）"""
+        # 优先使用新浪 API
+        etfs = await self._fetch_etfs_from_sina()
+        if etfs:
+            return etfs
+        # 回退到东方财富
+        logger.info("新浪API失败，尝试东方财富API")
+        return await self._fetch_etfs_from_eastmoney()
+
+    async def _fetch_etfs_from_sina(self) -> list[dict]:
+        """从新浪财经获取 ETF 列表"""
+        all_etfs = []
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                for page in range(1, 16):
+                    resp = await client.get(
+                        "https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeData",
+                        params={
+                            "page": page,
+                            "num": 100,
+                            "sort": "amount",
+                            "asc": 0,
+                            "node": "etf_hq_fund",
+                        },
+                        headers={"Referer": "https://finance.sina.com.cn"},
+                    )
+                    data = resp.json()
+                    if not data:
+                        break
+                    for item in data:
+                        code = item.get("code", "")
+                        if code:
+                            all_etfs.append({
+                                "code": code,
+                                "name": item.get("name", ""),
+                                "amount": item.get("amount", 0),
+                            })
+                    if len(data) < 100:
+                        break
+            logger.info(f"新浪API获取到 {len(all_etfs)} 个ETF")
+            return all_etfs
+        except Exception as e:
+            logger.warning(f"新浪ETF列表API失败: {e}")
+            return []
+
+    async def _fetch_etfs_from_eastmoney(self) -> list[dict]:
+        """从东方财富获取 ETF 列表（备用）"""
         all_etfs = []
         max_retries = 3
-
         for attempt in range(max_retries):
             try:
                 async with httpx.AsyncClient(timeout=self.timeout, headers=self.headers) as client:
@@ -112,14 +157,30 @@ class FundService:
                                     "name": item.get("f14", ""),
                                     "amount": item.get("f6", 0),
                                 })
-                    logger.info(f"获取到 {len(all_etfs)} 个ETF")
+                    logger.info(f"东方财富API获取到 {len(all_etfs)} 个ETF")
                     return all_etfs
             except Exception as e:
-                logger.warning(f"获取ETF列表失败(尝试{attempt+1}/{max_retries}): {e}")
+                logger.warning(f"东方财富ETF列表失败(尝试{attempt+1}/{max_retries}): {e}")
                 if attempt < max_retries - 1:
                     await asyncio.sleep(2)
                 all_etfs = []
         return all_etfs
+
+    async def _fetch_etf_desc(self, client: httpx.AsyncClient, code: str) -> str:
+        """获取单个 ETF 的描述（跟踪指数）"""
+        try:
+            url = f"https://fundf10.eastmoney.com/jbgk_{code}.html"
+            resp = await client.get(url, timeout=10)
+            text = resp.text
+            # 提取跟踪标的（支持两种格式）
+            match = re.search(r'跟踪标的</th><td>([^<]+)', text)
+            if not match:
+                match = re.search(r'跟踪标的</a></th>\s*<td[^>]*>([^<]+)', text)
+            if match:
+                return match.group(1).strip()
+        except Exception:
+            pass
+        return ""
 
     def _classify_etf(self, name: str) -> Optional[str]:
         """根据 ETF 名称识别所属板块"""
@@ -182,6 +243,60 @@ class FundService:
         self._etf_cache_time = now
         logger.info(f"更新ETF板块映射，共 {len(sector_map)} 个板块")
         return sector_map
+
+    async def build_etf_master(self, top_n: int = 3) -> dict:
+        """构建 ETF Master 数据（含描述）"""
+        etfs = await self._fetch_all_etfs()
+        if not etfs:
+            return {"etfs": {}, "sectors": {}}
+
+        # 按板块分类
+        sector_map: dict[str, list] = {}
+        for etf in etfs:
+            sector = self._classify_etf(etf["name"])
+            if sector:
+                if sector not in sector_map:
+                    sector_map[sector] = []
+                sector_map[sector].append(etf)
+
+        # 每个板块按成交额排序，取前N个
+        result_etfs = {}
+        result_sectors = {}
+
+        for sector, etf_list in sector_map.items():
+            etf_list.sort(key=lambda x: x["amount"], reverse=True)
+            top_etfs = etf_list[:top_n]
+            result_sectors[sector] = [e["code"] for e in top_etfs]
+
+            for etf in top_etfs:
+                if etf["code"] not in result_etfs:
+                    result_etfs[etf["code"]] = {
+                        "code": etf["code"],
+                        "name": etf["name"],
+                        "sector": sector,
+                        "amount_yi": round(etf["amount"] / 1e8, 2),
+                        "desc": "",
+                    }
+
+        # 批量获取描述（限制并发）
+        logger.info(f"获取 {len(result_etfs)} 个ETF的描述...")
+        async with httpx.AsyncClient(headers=self.headers) as client:
+            sem = asyncio.Semaphore(5)
+
+            async def fetch_desc(code):
+                async with sem:
+                    return code, await self._fetch_etf_desc(client, code)
+
+            tasks = [fetch_desc(code) for code in result_etfs.keys()]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for r in results:
+                if isinstance(r, tuple):
+                    code, desc = r
+                    if desc and code in result_etfs:
+                        result_etfs[code]["desc"] = desc
+
+        return {"etfs": result_etfs, "sectors": result_sectors}
 
     async def get_fund_info(self, code: str) -> Optional[dict]:
         """获取基金实时信息"""
