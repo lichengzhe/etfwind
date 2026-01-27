@@ -21,6 +21,9 @@ jobs:
       - name: Install dependencies
         run: pip install .
 
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
       - name: Run collection cycle
         env:
           CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}

@@ -15,11 +15,21 @@ from .cnbc import CNBCCollector
 from .bloomberg import BloombergCollector
 from .wsj import WSJCollector
 
+# Playwright 采集器（可选）
+_playwright_collectors = []
+try:
+    from .playwright_base import PlaywrightCollector, close_browser
+    from .cls_playwright import CLSPlaywrightCollector
+    _playwright_collectors = [CLSPlaywrightCollector]
+except ImportError:
+    close_browser = None
+    pass
+
 
 class NewsAggregator:
     """新闻聚合器"""
 
-    def __init__(self, include_international: bool = True):
+    def __init__(self, include_international: bool = True, include_playwright: bool = True):
         self.collectors: list[BaseCollector] = [
             CLSNewsCollector(),
             EastMoneyCollector(),
@@ -31,15 +41,28 @@ class NewsAggregator:
                 BloombergCollector(),
                 WSJCollector(),
             ])
+        # Playwright 采集器
+        self.playwright_collectors = []
+        if include_playwright and _playwright_collectors:
+            self.playwright_collectors = [c() for c in _playwright_collectors]
 
     async def collect_all(self) -> NewsCollection:
         """并发采集所有来源的新闻"""
+        # 普通采集器
         tasks = [c.safe_collect() for c in self.collectors]
         results = await asyncio.gather(*tasks)
 
         all_items: list[NewsItem] = []
         for items in results:
             all_items.extend(items)
+
+        # Playwright 采集器（串行执行避免资源竞争）
+        for pw_collector in self.playwright_collectors:
+            try:
+                pw_items = await pw_collector.safe_collect()
+                all_items.extend(pw_items)
+            except Exception as e:
+                logger.warning(f"Playwright 采集失败: {e}")
 
         # 去重（按标题）
         seen_titles = set()
@@ -68,6 +91,9 @@ class NewsAggregator:
         """关闭所有采集器"""
         for collector in self.collectors:
             await collector.close()
+        # 关闭 Playwright 浏览器
+        if close_browser:
+            await close_browser()
 
 
 __all__ = [
