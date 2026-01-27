@@ -8,15 +8,13 @@ import httpx
 from loguru import logger
 
 from src.config import settings
-from src.models import (
-    FocusEvent,
-    PositionAdvice,
-)
+from src.utils.timezone import today_beijing
 from src.web.database import (
     get_daily_report,
     get_news_by_ids,
     get_market_summaries,
     upsert_daily_report,
+    batch_upsert_focus_events,
 )
 from .prompts import (
     SYSTEM_PROMPT,
@@ -39,7 +37,7 @@ class IncrementalAnalyzer:
         force_full: bool = False,
     ) -> dict:
         """分析新增新闻，更新当日报告"""
-        today = date.today()
+        today = today_beijing()
 
         # 获取现有报告
         existing_report = await get_daily_report(today)
@@ -66,6 +64,12 @@ class IncrementalAnalyzer:
         all_news_ids = list(set(existing_ids + new_news_ids))
         result["news_ids"] = all_news_ids
         result["report_date"] = today.isoformat()
+
+        # 保存焦点事件到独立表（瀑布流累积）
+        focus_events = result.get("focus_events", [])
+        if focus_events:
+            await batch_upsert_focus_events(focus_events)
+            logger.info(f"已保存 {len(focus_events)} 个焦点事件")
 
         # 保存更新
         await upsert_daily_report(result)
@@ -151,7 +155,7 @@ class IncrementalAnalyzer:
                 },
                 json={
                     "model": self.model,
-                    "max_tokens": 8192,
+                    "max_tokens": 16384,
                     "system": SYSTEM_PROMPT,
                     "messages": [{"role": "user", "content": prompt}],
                 },
@@ -163,21 +167,52 @@ class IncrementalAnalyzer:
     def _parse_response(self, content: str) -> dict:
         """解析 AI 响应"""
         import re
+
+        # 尝试提取 JSON 块
         json_match = re.search(r"```json\s*(.*?)\s*```", content, re.DOTALL)
         if json_match:
             json_str = json_match.group(1)
         else:
-            json_str = content
+            json_match = re.search(r"\{[\s\S]*\}", content)
+            if json_match:
+                json_str = json_match.group(0)
+            else:
+                json_str = content
+
+        # 清理常见的 JSON 格式问题
+        json_str = json_str.strip()
+        json_str = re.sub(r',\s*}', '}', json_str)
+        json_str = re.sub(r',\s*]', ']', json_str)
+        # 修复截断的 JSON - 尝试补全
+        if json_str.count('{') > json_str.count('}'):
+            json_str += '}' * (json_str.count('{') - json_str.count('}'))
+        if json_str.count('[') > json_str.count(']'):
+            json_str += ']' * (json_str.count('[') - json_str.count(']'))
 
         try:
             data = json.loads(json_str)
         except json.JSONDecodeError as e:
             logger.error(f"JSON 解析失败: {e}")
-            return self._default_result()
+            # 尝试截取到最后一个完整的事件
+            try:
+                last_brace = json_str.rfind('}')
+                if last_brace > 0:
+                    truncated = json_str[:last_brace+1]
+                    # 补全可能缺失的括号
+                    truncated += ']' * (truncated.count('[') - truncated.count(']'))
+                    truncated += '}' * (truncated.count('{') - truncated.count('}'))
+                    data = json.loads(truncated)
+                    logger.info("使用截断后的 JSON 解析成功")
+                else:
+                    return self._default_result()
+            except:
+                logger.debug(f"原始响应: {content[:500]}...")
+                return self._default_result()
 
         return {
             "one_liner": data.get("one_liner", "暂无建议"),
             "market_emotion": data.get("market_emotion", 50),
+            "market_narrative": data.get("market_narrative", ""),
             "emotion_suggestion": data.get("emotion_suggestion", ""),
             "focus_events": data.get("focus_events", []),
             "position_advices": data.get("position_advices", []),
@@ -189,6 +224,7 @@ class IncrementalAnalyzer:
         return {
             "one_liner": "AI 分析暂时不可用",
             "market_emotion": 50,
+            "market_narrative": "",
             "emotion_suggestion": "",
             "focus_events": [],
             "position_advices": [],
