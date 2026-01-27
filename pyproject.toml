@@ -25,6 +25,5 @@ dependencies = [
     # Database
     "supabase>=2.0.0",
     # Web scraping
-    "playwright>=1.40.0",
     "beautifulsoup4>=4.12.0",
 ]

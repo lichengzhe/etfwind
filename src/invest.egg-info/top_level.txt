@@ -9,3 +9,4 @@ services
 utils
 web
 worker
+worker_simple

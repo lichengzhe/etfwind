@@ -12,3 +12,4 @@ Requires-Dist: fastapi>=0.115.0
 Requires-Dist: uvicorn>=0.32.0
 Requires-Dist: jinja2>=3.1.0
 Requires-Dist: supabase>=2.0.0
+Requires-Dist: beautifulsoup4>=4.12.0
