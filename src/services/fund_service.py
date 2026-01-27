@@ -105,15 +105,47 @@ class FundService:
             return "冷清"
 
     async def batch_get_funds(self, codes: list[str]) -> dict[str, dict]:
-        """批量获取基金信息（并发）"""
-        import asyncio
-        tasks = [self.get_fund_info(code) for code in codes]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        return {
-            code: info
-            for code, info in zip(codes, results)
-            if info and not isinstance(info, Exception)
-        }
+        """批量获取基金信息（使用批量接口）"""
+        if not codes:
+            return {}
+
+        # 构建 secids: 5开头上海(1.)，其他深圳(0.)
+        secids = []
+        for code in codes:
+            if code.startswith("5"):
+                secids.append(f"1.{code}")
+            else:
+                secids.append(f"0.{code}")
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout, headers=self.headers) as client:
+                # 使用批量接口一次获取所有数据
+                resp = await client.get(
+                    "https://push2.eastmoney.com/api/qt/ulist.np/get",
+                    params={
+                        "secids": ",".join(secids),
+                        "fields": "f12,f14,f2,f3,f4,f5,f6",
+                    },
+                )
+                data = resp.json().get("data", {})
+                diff = data.get("diff", [])
+
+                result = {}
+                for item in diff:
+                    code = item.get("f12", "")
+                    if code:
+                        result[code] = {
+                            "code": code,
+                            "name": item.get("f14", ""),
+                            "price": round(item.get("f2", 0) / 100, 3),
+                            "change_pct": round(item.get("f3", 0) / 100, 2),
+                            "week_change": 0,  # 批量接口不含周涨幅
+                            "amount_yi": round(item.get("f6", 0) / 100000000, 2),
+                        }
+                return result
+        except Exception as e:
+            logger.warning(f"批量获取基金数据失败: {e}")
+            return {}
 
 
 # 单例
