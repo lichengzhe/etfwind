@@ -14,7 +14,7 @@ class Settings(BaseSettings):
         default="https://code.newcli.com/claude/aws", alias="CLAUDE_BASE_URL"
     )
     claude_model: str = Field(
-        default="claude-opus-4-5-20250514", alias="CLAUDE_MODEL"
+        default="claude-opus-4-5-20251101", alias="CLAUDE_MODEL"
     )
 
     # Supabase 配置
