@@ -26,7 +26,7 @@ INVESTMENT_ANALYSIS_PROMPT = """请根据以下财经新闻，生成投资决策
 
 ```json
 {{
-  "market_narrative": "用2-3句话讲述当前市场的整体故事，帮助读者理解大环境（如：近期市场受XX因素影响，整体呈现XX态势，投资者情绪XX）",
+  "market_narrative": "市场全景分析（150-200字）：1)当前所处阶段（牛市初期/中期/末期、熊市、震荡市等）及判断依据；2)近期主要矛盾（政策、资金、情绪、外围等）；3)未来1-2周关键变量和可能演绎路径；4)逆向思考：市场共识是什么，哪里可能出错",
   "one_liner": "今日一句话决策建议（20字内，直接告诉该怎么做）",
   "market_emotion": 65,
   "focus_events": [
@@ -78,7 +78,7 @@ INCREMENTAL_ANALYSIS_PROMPT = """请根据新增新闻更新今日投资报告�
 2. 保持 focus_events 数量在5-6个，按重要性排序
 3. 每个事件必须包含：title、sector、time、analysis、suggestion、related_funds、source_ids
 4. source_ids 是【必填】字段，引用新闻序号列表如 [1, 3]，至少引用1条新闻
-5. 更新 market_narrative（2-3句话描述当前市场整体故事）
+5. 更新 market_narrative（150-200字的市场全景分析，包含阶段判断、主要矛盾、未来变量、逆向思考）
 6. 更新 market_emotion 和 one_liner（如果市场情绪有变化）
 7. 输出完整的更新后报告（JSON格式同上）
 """
