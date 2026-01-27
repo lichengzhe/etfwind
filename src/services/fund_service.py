@@ -105,26 +105,29 @@ class FundService:
             return "冷清"
 
     async def batch_get_funds(self, codes: list[str]) -> dict[str, dict]:
-        """批量获取基金信息（使用批量接口）"""
+        """批量获取基金信息（实时行情+多周期涨跌幅）"""
         if not codes:
             return {}
 
         # 构建 secids: 5开头上海(1.)，其他深圳(0.)
         secids = []
+        code_to_secid = {}
         for code in codes:
             if code.startswith("5"):
-                secids.append(f"1.{code}")
+                secid = f"1.{code}"
             else:
-                secids.append(f"0.{code}")
+                secid = f"0.{code}"
+            secids.append(secid)
+            code_to_secid[code] = secid
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout, headers=self.headers) as client:
-                # 使用批量接口一次获取所有数据
+                # 1. 批量获取实时行情（含资金流向）
                 resp = await client.get(
                     "https://push2.eastmoney.com/api/qt/ulist.np/get",
                     params={
                         "secids": ",".join(secids),
-                        "fields": "f12,f14,f2,f3,f4,f5,f6",
+                        "fields": "f12,f14,f2,f3,f6,f62,f184",
                     },
                 )
                 data = resp.json().get("data", {})
@@ -134,17 +137,75 @@ class FundService:
                 for item in diff:
                     code = item.get("f12", "")
                     if code:
+                        # f62: 主力净流入（元），f184: 主力净占比（需/100）
+                        flow = item.get("f62", 0) or 0
+                        flow_yi = round(flow / 100000000, 2)
+                        flow_pct = round((item.get("f184", 0) or 0) / 100, 2)
                         result[code] = {
                             "code": code,
                             "name": item.get("f14", ""),
-                            "price": round(item.get("f2", 0) / 100, 3),
+                            "price": round(item.get("f2", 0) / 1000, 3),
                             "change_pct": round(item.get("f3", 0) / 100, 2),
-                            "week_change": 0,  # 批量接口不含周涨幅
+                            "change_5d": 0,
+                            "change_20d": 0,
                             "amount_yi": round(item.get("f6", 0) / 100000000, 2),
+                            "flow_yi": flow_yi,  # 主力净流入（亿）
+                            "flow_pct": flow_pct,  # 主力净占比%
                         }
+
+                # 2. 并发获取K线计算多周期涨跌幅
+                import asyncio
+                tasks = []
+                for code in result.keys():
+                    tasks.append(self._get_kline_changes(client, code_to_secid.get(code, "")))
+
+                if tasks:
+                    kline_results = await asyncio.gather(*tasks, return_exceptions=True)
+                    for code, kline_data in zip(result.keys(), kline_results):
+                        if isinstance(kline_data, dict):
+                            result[code]["change_5d"] = kline_data.get("change_5d", 0)
+                            result[code]["change_20d"] = kline_data.get("change_20d", 0)
+
                 return result
         except Exception as e:
             logger.warning(f"批量获取基金数据失败: {e}")
+            return {}
+
+    async def _get_kline_changes(self, client, secid: str) -> dict:
+        """获取K线计算5日和20日涨跌幅"""
+        try:
+            resp = await client.get(
+                "https://push2his.eastmoney.com/api/qt/stock/kline/get",
+                params={
+                    "secid": secid,
+                    "fields1": "f1,f2,f3",
+                    "fields2": "f51,f52,f53,f54,f55,f56",
+                    "klt": "101",
+                    "fqt": "1",
+                    "end": "20500101",
+                    "lmt": "25",
+                },
+            )
+            klines = resp.json().get("data", {}).get("klines", [])
+            if not klines:
+                return {}
+
+            # kline格式: 日期,开,收,高,低,成交量
+            today_close = float(klines[-1].split(",")[2])
+
+            change_5d = 0
+            change_20d = 0
+
+            if len(klines) >= 6:
+                close_5d = float(klines[-6].split(",")[2])
+                change_5d = round((today_close - close_5d) / close_5d * 100, 2)
+
+            if len(klines) >= 21:
+                close_20d = float(klines[-21].split(",")[2])
+                change_20d = round((today_close - close_20d) / close_20d * 100, 2)
+
+            return {"change_5d": change_5d, "change_20d": change_20d}
+        except Exception:
             return {}
 
 
