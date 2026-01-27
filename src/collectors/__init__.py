@@ -20,7 +20,8 @@ _playwright_collectors = []
 try:
     from .playwright_base import PlaywrightCollector, close_browser
     from .cls_playwright import CLSPlaywrightCollector
-    _playwright_collectors = [CLSPlaywrightCollector]
+    from .sina_playwright import SinaPlaywrightCollector
+    _playwright_collectors = [CLSPlaywrightCollector, SinaPlaywrightCollector]
 except ImportError:
     close_browser = None
     pass
