@@ -7,17 +7,19 @@ from loguru import logger
 
 from src.collectors import NewsAggregator
 from src.analyzers import IncrementalAnalyzer
+from src.utils.timezone import today_beijing
 from src.web.database import (
     init_db,
     store_news_batch,
     get_daily_report,
+    get_daily_report_raw,
     finalize_daily_report,
 )
 
 # 配置
 COLLECT_INTERVAL = 600  # 10分钟
-MIN_NEWS_FOR_UPDATE = 5  # 最少新增新闻数触发更新
-MIN_UPDATE_INTERVAL = 1800  # 最少更新间隔（秒）
+MIN_NEWS_FOR_UPDATE = 1  # 最少新增新闻数触发更新
+MIN_UPDATE_INTERVAL = 300  # 最少更新间隔（秒）5分钟
 
 
 async def collect_and_store() -> list[int]:
@@ -52,7 +54,7 @@ async def should_update(new_ids: list[int]) -> bool:
     if len(new_ids) < MIN_NEWS_FOR_UPDATE:
         return False
 
-    report = await get_daily_report()
+    report = await get_daily_report_raw()
     if not report:
         return True
 
@@ -61,16 +63,12 @@ async def should_update(new_ids: list[int]) -> bool:
         return True
 
     if isinstance(last_updated, str):
-        # last_updated 是北京时间字符串，转换为 datetime
+        # last_updated 是 UTC ISO 格式字符串
         try:
-            last_updated = datetime.fromisoformat(last_updated)
+            last_updated = datetime.fromisoformat(last_updated.replace("Z", "+00:00"))
         except ValueError:
-            # 格式可能是 "YYYY-MM-DD HH:MM:SS"
-            last_updated = datetime.strptime(last_updated, "%Y-%m-%d %H:%M:%S")
-        # 标记为北京时区
-        from datetime import timezone as tz, timedelta
-        beijing_tz = tz(timedelta(hours=8))
-        last_updated = last_updated.replace(tzinfo=beijing_tz)
+            # 如果解析失败，返回 True 触发更新
+            return True
 
     elapsed = (datetime.now(timezone.utc) - last_updated).total_seconds()
     return elapsed >= MIN_UPDATE_INTERVAL
@@ -78,7 +76,7 @@ async def should_update(new_ids: list[int]) -> bool:
 
 async def check_and_finalize_yesterday():
     """检查并归档昨日报告"""
-    yesterday = date.today() - timedelta(days=1)
+    yesterday = today_beijing() - timedelta(days=1)
     report = await get_daily_report(yesterday)
     if report and not report.get("is_finalized"):
         await finalize_daily_report(yesterday)
