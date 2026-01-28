@@ -103,14 +103,22 @@ async def enrich_sectors_with_etfs(result: dict):
         logger.warning("无法获取板块映射")
         return
 
+    # 板块名映射（AI输出 -> ETF板块）
+    sector_alias = {
+        "新能源车": "锂电池", "新能源": "光伏", "创新药": "医药",
+        "贵金属": "黄金", "券商": "证券",
+    }
+
     # 收集需要查询的ETF代码
     codes_to_fetch = set()
     sector_etf_mapping = {}
 
     for sector in sectors:
         sector_name = sector.get("name", "")
+        # 先尝试别名映射
+        lookup_name = sector_alias.get(sector_name, sector_name)
         for key, etfs in sector_map.items():
-            if key in sector_name or sector_name in key:
+            if key in lookup_name or lookup_name in key:
                 codes = [code for code, name in etfs[:3]]
                 sector_etf_mapping[sector_name] = codes
                 codes_to_fetch.update(codes)
