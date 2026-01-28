@@ -140,13 +140,14 @@ async def analyze(items: list[NewsItem], sector_list: list[str] = None) -> dict:
         except json.JSONDecodeError as e:
             import re
             logger.warning(f"JSON 解析失败，尝试修复: {e}")
-            logger.debug(f"原始文本: {text[:500]}...")
-            # 修复：移除尾部逗号
-            text = re.sub(r',(\s*[}\]])', r'\1', text)
             # 修复：中文引号替换
             text = text.replace('"', '"').replace('"', '"')
-            # 修复：字符串内的换行
-            text = re.sub(r'(?<!\\)\n(?=[^"]*"[^"]*$)', ' ', text)
+            # 修复：移除尾部逗号
+            text = re.sub(r',(\s*[}\]])', r'\1', text)
+            # 修复：字符串内的换行（更彻底的方法）
+            def fix_newlines(m):
+                return m.group(0).replace('\n', ' ').replace('\r', '')
+            text = re.sub(r'"[^"]*"', fix_newlines, text)
             try:
                 return json.loads(text)
             except json.JSONDecodeError as e2:
