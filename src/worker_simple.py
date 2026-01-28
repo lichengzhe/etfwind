@@ -23,6 +23,7 @@ ARCHIVE_DIR.mkdir(exist_ok=True)
 
 def archive_data(beijing_tz):
     """归档数据：当天保留，7天每天一份，1月每周一份，1年每月一份"""
+    logger.info("=== 开始归档数据 ===")
     now = datetime.now(beijing_tz)
     today = now.strftime("%Y-%m-%d")
 
@@ -33,7 +34,11 @@ def archive_data(beijing_tz):
         if not daily_file.exists():
             import shutil
             shutil.copy(latest_file, daily_file)
-            logger.info(f"归档到 {daily_file}")
+            logger.info(f"✅ 归档成功: {daily_file.name}")
+        else:
+            logger.info(f"⏭️ 今日已归档: {daily_file.name}")
+    else:
+        logger.warning("⚠️ latest.json 不存在，跳过归档")
 
     # 清理旧归档
     cleanup_archives(now)
@@ -42,7 +47,9 @@ def archive_data(beijing_tz):
 def cleanup_archives(now: datetime):
     """清理归档：7天内每天保留，30天内每周保留，1年内每月保留"""
     archive_files = sorted(ARCHIVE_DIR.glob("latest_*.json"))
+    logger.info(f"📁 归档目录共 {len(archive_files)} 个文件")
 
+    cleaned = 0
     for f in archive_files:
         # 解析日期
         try:
@@ -78,11 +85,13 @@ def cleanup_archives(now: datetime):
 
 def load_history(days: int = 7) -> list[dict]:
     """读取近N天的历史归档数据"""
+    logger.info(f"=== 读取历史数据 (最近{days}天) ===")
     beijing_tz = timezone(timedelta(hours=8))
     now = datetime.now(beijing_tz)
     history = []
 
     archive_files = sorted(ARCHIVE_DIR.glob("latest_*.json"), reverse=True)
+    logger.info(f"📁 找到 {len(archive_files)} 个归档文件")
     for f in archive_files[:days]:
         try:
             data = json.loads(f.read_text())
@@ -97,9 +106,13 @@ def load_history(days: int = 7) -> list[dict]:
                         for s in result.get("sectors", [])
                     ]
                 })
+                logger.info(f"  ✅ {date_str}: {len(result['sectors'])} 个板块")
+            else:
+                logger.info(f"  ⏭️ {date_str}: 无板块数据")
         except Exception as e:
-            logger.warning(f"读取归档 {f.name} 失败: {e}")
+            logger.warning(f"  ❌ 读取 {f.name} 失败: {e}")
 
+    logger.info(f"📊 成功加载 {len(history)} 天历史数据")
     return history
 
 
@@ -146,36 +159,42 @@ async def save_news(news_items, beijing_tz):
 
 async def run():
     """运行采集和分析"""
-    logger.info("开始采集新闻...")
+    logger.info("=" * 50)
+    logger.info("🚀 ETF风向标 - 开始运行")
+    logger.info("=" * 50)
 
     # 采集
+    logger.info("=== 第1步: 采集新闻 ===")
     agg = NewsAggregator(include_international=True, include_playwright=True)
     try:
         news = await agg.collect_all()
         source_stats = dict(Counter(item.source for item in news.items))
-        logger.info(f"采集到 {len(news.items)} 条新闻: {source_stats}")
+        logger.info(f"✅ 采集完成: {len(news.items)} 条新闻")
+        for src, cnt in sorted(source_stats.items(), key=lambda x: -x[1]):
+            logger.info(f"  - {src}: {cnt} 条")
     finally:
         await agg.close()
 
     # 读取 sector_list（从 etf_master.json）
+    logger.info("=== 第2步: 读取板块配置 ===")
     sector_list = None
     etf_file = DATA_DIR / "etf_master.json"
     if etf_file.exists():
         try:
             etf_data = json.loads(etf_file.read_text())
             sector_list = etf_data.get("sector_list", [])
-            logger.info(f"读取到 {len(sector_list)} 个板块")
+            logger.info(f"✅ 读取到 {len(sector_list)} 个可选板块")
         except Exception as e:
-            logger.warning(f"读取 sector_list 失败: {e}")
+            logger.warning(f"⚠️ 读取 sector_list 失败: {e}")
+    else:
+        logger.warning("⚠️ etf_master.json 不存在，使用默认板块")
 
-    # AI 分析（传入 sector_list 约束）
-    logger.info("开始 AI 分析...")
     # 读取历史数据用于综合分析
     history = load_history(days=7)
     history_context = format_history_context(history)
-    if history:
-        logger.info(f"读取到 {len(history)} 天历史数据")
 
+    # AI 分析
+    logger.info("=== 第3步: AI 分析 ===")
     result = await analyze(news.items, sector_list=sector_list, history_context=history_context)
 
     # 检查分析结果是否有效
@@ -187,24 +206,31 @@ async def run():
 
     # AI 分析结果无效时，不覆盖文件
     if not result or not result.get("sectors"):
-        logger.warning("AI 分析结果为空，不覆盖历史数据")
-        # 尝试读取历史数据用于后续处理
+        logger.error("❌ AI 分析结果为空，不覆盖历史数据")
         if output_file.exists():
             try:
                 old_data = json.loads(output_file.read_text())
                 result = old_data.get("result", {})
-                logger.info("使用历史分析结果")
+                logger.info("📂 使用历史分析结果")
             except Exception as e:
-                logger.error(f"读取历史数据失败: {e}")
-        # 即使分析失败，也保存新闻数据
+                logger.error(f"❌ 读取历史数据失败: {e}")
         await save_news(news.items, beijing_tz)
         await fetch_etf_map()
+        logger.info("⚠️ 运行结束（分析失败）")
         return None
 
+    # 分析成功
+    sectors = result.get("sectors", [])
+    logger.info(f"✅ AI 分析完成: {len(sectors)} 个板块")
+    for s in sectors:
+        logger.info(f"  - {s['name']}: {s['direction']} {'★'*s['heat']}")
+
     # 为每个板块匹配 ETF
+    logger.info("=== 第4步: 匹配 ETF ===")
     await enrich_sectors_with_etfs(result)
 
     # 保存结果
+    logger.info("=== 第5步: 保存结果 ===")
     output = {
         "result": result,
         "updated_at": datetime.now(beijing_tz).isoformat(),
@@ -213,13 +239,17 @@ async def run():
     }
 
     output_file.write_text(json.dumps(output, ensure_ascii=False, indent=2))
-    logger.info(f"结果已保存到 {output_file}")
+    logger.info(f"✅ 分析结果已保存: {output_file}")
 
     # 保存新闻列表
     await save_news(news.items, beijing_tz)
 
     # 生成 ETF 板块映射（每天一次）
     await fetch_etf_map()
+
+    logger.info("=" * 50)
+    logger.info("🎉 ETF风向标 - 运行完成")
+    logger.info("=" * 50)
 
     return output
 
@@ -228,13 +258,15 @@ async def enrich_sectors_with_etfs(result: dict):
     """为每个板块匹配交易量最大的3个ETF"""
     sectors = result.get("sectors", [])
     if not sectors:
+        logger.warning("⚠️ 无板块数据，跳过ETF匹配")
         return
 
     # 获取板块->ETF映射
     sector_map = await fund_service.get_sector_etf_map()
     if not sector_map:
-        logger.warning("无法获取板块映射")
+        logger.warning("⚠️ 无法获取板块映射")
         return
+    logger.info(f"📊 板块映射: {len(sector_map)} 个板块")
 
     # 板块名映射（AI输出 -> ETF板块）
     sector_alias = {
@@ -259,14 +291,15 @@ async def enrich_sectors_with_etfs(result: dict):
                 break
 
     if not codes_to_fetch:
-        logger.info("没有匹配到ETF代码")
+        logger.warning("⚠️ 没有匹配到ETF代码")
         return
 
     # 批量获取ETF实时数据
-    logger.info(f"获取 {len(codes_to_fetch)} 个ETF数据")
+    logger.info(f"📈 获取 {len(codes_to_fetch)} 个ETF实时数据")
     fund_data = await fund_service.batch_get_funds(list(codes_to_fetch))
 
     # 为每个板块添加ETF信息
+    matched = 0
     for sector in sectors:
         sector_name = sector.get("name", "")
         codes = sector_etf_mapping.get(sector_name, [])
@@ -274,11 +307,13 @@ async def enrich_sectors_with_etfs(result: dict):
         for code in codes:
             if code in fund_data:
                 etfs.append(fund_data[code])
-        # 按成交额排序
         etfs.sort(key=lambda x: x.get("amount_yi", 0), reverse=True)
         sector["etfs"] = etfs[:3]
+        if etfs:
+            matched += 1
+            logger.info(f"  ✅ {sector_name}: {', '.join(e['name'] for e in etfs[:3])}")
 
-    logger.info("板块ETF匹配完成")
+    logger.info(f"✅ ETF匹配完成: {matched}/{len(sectors)} 个板块")
 
 
 async def fetch_etf_map(force: bool = False):
