@@ -53,7 +53,6 @@ cd workers && npm run deploy
 ```bash
 CLAUDE_API_KEY=sk-xxx        # 必需
 CLAUDE_BASE_URL=https://...  # 可选，支持中转
-CLAUDE_MODEL=claude-sonnet-4-20250514
 ```
 
 ## License
