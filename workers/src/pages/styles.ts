@@ -36,6 +36,8 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
   .etf-table td:nth-child(3) { border-left: none; }
   .etf-table td:nth-child(5) { border-left: none; }
   .etf-table .sparkline { width: 60px; }
+  .etf-labels span:first-child { margin-left: 40%; width: 30%; }
+  .etf-labels span:last-child { width: 30%; }
 }
 .sector-card { background: #fff; border-radius: 10px; padding: 10px 12px; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
 .sector-card.up { background: #fffbf7; border-left: 3px solid #f97316; }
