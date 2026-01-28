@@ -30,9 +30,20 @@ async def run():
     finally:
         await agg.close()
 
-    # AI 分析
+    # 读取 sector_list（从 etf_master.json）
+    sector_list = None
+    etf_file = DATA_DIR / "etf_master.json"
+    if etf_file.exists():
+        try:
+            etf_data = json.loads(etf_file.read_text())
+            sector_list = etf_data.get("sector_list", [])
+            logger.info(f"读取到 {len(sector_list)} 个板块")
+        except Exception as e:
+            logger.warning(f"读取 sector_list 失败: {e}")
+
+    # AI 分析（传入 sector_list 约束）
     logger.info("开始 AI 分析...")
-    result = await analyze(news.items)
+    result = await analyze(news.items, sector_list=sector_list)
 
     # 为每个板块匹配 ETF
     await enrich_sectors_with_etfs(result)

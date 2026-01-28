@@ -54,8 +54,19 @@ async function loadNews(r2: R2Bucket): Promise<NewsItem[]> {
 
 // 首页
 app.get('/', async (c) => {
-  const data = await loadData(c.env.R2)
-  const etfMaster = await loadEtfMaster(c.env.R2)
+  const [data, etfMaster, news] = await Promise.all([
+    loadData(c.env.R2),
+    loadEtfMaster(c.env.R2),
+    loadNews(c.env.R2),
+  ])
+  // 从 news.json 统计实际的 source 分布
+  const sourceStats: Record<string, number> = {}
+  for (const item of news) {
+    sourceStats[item.source] = (sourceStats[item.source] || 0) + 1
+  }
+  // 覆盖 latest.json 中的 source_stats
+  data.source_stats = sourceStats
+  data.news_count = news.length
   return c.html(renderHome(data, etfMaster))
 })
 

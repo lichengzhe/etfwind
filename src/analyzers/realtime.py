@@ -28,6 +28,9 @@ ANALYSIS_PROMPT = """你是A股ETF投资分析师，分析新闻并输出投资�
 ## 新闻（共{count}条）
 {news_list}
 
+## 可选板块
+{sector_list}
+
 ## 输出JSON
 ```json
 {{
@@ -50,7 +53,7 @@ ANALYSIS_PROMPT = """你是A股ETF投资分析师，分析新闻并输出投资�
 
 ## 要求
 - sectors 最多6个，按热度和重要性排序
-- name 必须是：芯片/半导体/人工智能/通信/机器人/光伏/新能源/新能源车/锂电池/军工/医药/创新药/证券/银行/房地产/白酒/消费/农业/黄金/贵金属/有色/煤炭/钢铁/石油/恒生科技/港股/游戏/传媒/电力/互联网/汽车/家电/环保
+- name 必须从上面的"可选板块"中选择，确保能匹配到对应ETF
 - heat: 1-5星热度（5=极热，基于新闻数量、事件重要性、市场关注度）
 - direction: 利好/利空/中性
 - analysis: 深度分析，信息量要足，包含逻辑链条
@@ -71,8 +74,13 @@ async def collect_news() -> tuple[list[NewsItem], dict]:
         await agg.close()
 
 
-async def analyze(items: list[NewsItem]) -> dict:
-    """AI分析新闻"""
+async def analyze(items: list[NewsItem], sector_list: list[str] = None) -> dict:
+    """AI分析新闻
+
+    Args:
+        items: 新闻列表
+        sector_list: 可选板块列表（从 etf_master.json 读取）
+    """
     base_url = settings.claude_base_url.rstrip("/")
     api_key = settings.claude_api_key
     model = settings.claude_model
@@ -82,7 +90,24 @@ async def analyze(items: list[NewsItem]) -> dict:
         for i, item in enumerate(items)
     ])
 
-    prompt = ANALYSIS_PROMPT.format(count=len(items), news_list=news_list)
+    # 默认板块列表
+    if not sector_list:
+        sector_list = [
+            "芯片", "半导体", "人工智能", "通信", "机器人",
+            "光伏", "新能源", "新能源车", "锂电池", "军工",
+            "医药", "创新药", "证券", "银行", "房地产",
+            "白酒", "消费", "农业", "黄金", "贵金属",
+            "有色", "煤炭", "钢铁", "石油", "化工",
+            "恒生科技", "港股", "游戏", "传媒", "电力",
+            "互联网", "汽车", "家电", "环保"
+        ]
+
+    sector_str = "/".join(sector_list)
+    prompt = ANALYSIS_PROMPT.format(
+        count=len(items),
+        news_list=news_list,
+        sector_list=sector_str
+    )
 
     try:
         async with httpx.AsyncClient(timeout=120) as client:

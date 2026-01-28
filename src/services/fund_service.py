@@ -10,58 +10,14 @@ from typing import Optional
 
 from src.config import settings
 
-# 板块关键词映射（用于从 ETF 名称中提取板块）
-# 格式: 板块名 -> [关键词列表]
-# 注意：匹配顺序很重要，更具体的关键词应该放在前面
-SECTOR_KEYWORDS = {
-    # 科技类
-    "芯片": ["芯片", "集成电路"],
-    "半导体": ["半导体"],
-    "人工智能": ["人工智能", "AI ETF", "AIETF"],
-    "云计算": ["云计算", "大数据"],
-    "通信": ["通信ETF", "5G"],
-    "机器人": ["机器人"],
-    # 新能源类
-    "光伏": ["光伏"],
-    "新能源车": ["新能源车", "新能源汽车", "智能汽车", "智能车"],
-    "新能源": ["新能源ETF"],
-    "锂电池": ["锂电池", "电池ETF"],
-    # 军工
-    "军工": ["军工", "国防", "航天航空", "航空航天"],
-    # 医药类
-    "创新药": ["创新药"],
-    "医药": ["医药", "医疗", "生物制药"],
-    # 金融类
-    "证券": ["证券ETF", "券商ETF"],
-    "银行": ["银行ETF"],
-    "保险": ["保险ETF"],
-    # 地产
-    "房地产": ["房地产", "地产ETF"],
-    # 消费类
-    "白酒": ["白酒", "酒ETF"],
-    "食品饮料": ["食品ETF", "饮料"],
-    "消费": ["消费ETF"],
-    "家电": ["家电"],
-    # 农业
-    "农业": ["农业ETF", "养殖", "畜牧", "猪"],
-    # 资源类
-    "黄金": ["黄金ETF"],
-    "贵金属": ["贵金属", "白银"],
-    "有色": ["有色金属", "铜ETF", "铝ETF", "稀土"],
-    "煤炭": ["煤炭"],
-    "钢铁": ["钢铁"],
-    "石油": ["石油", "油气"],
-    # 其他
-    "汽车": ["汽车ETF", "汽车零部件"],
-    "恒生科技": ["恒生科技"],
-    "港股": ["港股通", "H股ETF"],
-    "科技": ["科技ETF", "TMT"],
-    "互联网": ["互联网"],
-    "游戏": ["游戏ETF"],
-    "传媒": ["传媒ETF"],
-    "电力": ["电力ETF", "电网"],
-    "环保": ["环保", "碳中和"],
-}
+# 排除的 ETF 类型（宽基指数、债券、货币、跨境等）
+EXCLUDE_KEYWORDS = [
+    "沪深300", "中证500", "中证1000", "上证50", "科创50", "科创100",
+    "A500", "深证100", "深成", "中小", "综指", "中证A", "创业板ETF",
+    "红利", "国债", "债券", "货币", "短融", "可转债", "公司债",
+    "纳指", "纳斯达克", "标普", "日经", "德国", "法国", "中韩",
+    "恒生互联网", "中概", "香港证券",
+]
 
 
 class FundService:
@@ -248,64 +204,106 @@ class FundService:
             logger.warning(f"AI精炼描述失败: {e}")
             return {}
 
-    def _classify_etf(self, name: str) -> Optional[str]:
-        """根据 ETF 名称识别所属板块"""
-        # 排除宽基指数ETF
-        exclude_keywords = ["沪深300", "中证500", "中证1000", "上证50",
-                          "创业板ETF", "科创50", "科创100", "A500", "红利",
-                          "深证100", "深成", "中小", "综指", "中证A"]
-        for kw in exclude_keywords:
+    def _should_exclude_etf(self, name: str) -> bool:
+        """检查是否应排除该 ETF（宽基、债券、跨境等）"""
+        for kw in EXCLUDE_KEYWORDS:
             if kw in name:
-                return None
+                return True
+        return False
 
-        # 排除跨境ETF（除非是专门的港股板块关键词）
-        cross_border = ["香港", "纳指", "纳斯达克", "标普", "日经", "德国", "法国",
-                       "中韩", "恒生互联网", "中概", "港股创新药", "港股通创新药",
-                       "恒生医药", "恒生医疗"]
-        if any(kw in name for kw in cross_border):
-            # 只保留恒生科技和港股通（非创新药）
-            if "恒生科技" in name:
-                return "恒生科技"
-            if "港股通" in name and "创新药" not in name:
-                return "港股"
-            return None
+    async def _ai_classify_etfs(self, client: httpx.AsyncClient, etf_infos: list[dict]) -> dict[str, dict]:
+        """用 AI 批量分类 ETF 到板块"""
+        if not etf_infos:
+            return {}
 
-        # 排除复合型ETF（如"证券保险"）
-        if "证券保险" in name:
-            return None
+        # 构建 ETF 信息列表
+        etf_list = "\n".join([
+            f"- {info['code']} {info.get('name','')}: {info.get('scope','')[:150]}"
+            for info in etf_infos
+        ])
 
-        # 按关键词匹配板块
-        for sector, keywords in SECTOR_KEYWORDS.items():
-            for kw in keywords:
-                if kw in name:
-                    return sector
-        return None
+        prompt = f"""对以下ETF进行板块分类。
+
+## ETF列表
+{etf_list}
+
+## 输出要求
+1. 每个ETF归类到一个主板块，可选归类到1-2个相关板块
+2. 板块名要简洁（2-4字），如：黄金、有色、芯片、半导体、人工智能、医药、证券、银行、军工、光伏、新能源车、锂电池、白酒、消费、农业、煤炭、钢铁、石油、化工、电力、机器人、通信、游戏、传媒、房地产、家电、环保、恒生科技、港股、互联网
+3. 相似板块要合并用同一个名称（如"券商"统一用"证券"，"医疗"统一用"医药"）
+
+## 输出JSON
+```json
+{{
+  "分类结果": {{
+    "ETF代码": {{"sector": "主板块", "related": ["相关板块1"]}},
+    ...
+  }},
+  "板块列表": ["黄金", "有色", ...]
+}}
+```"""
+
+        try:
+            resp = await client.post(
+                f"{settings.claude_base_url.rstrip('/')}/v1/messages",
+                headers={
+                    "Content-Type": "application/json",
+                    "x-api-key": settings.claude_api_key,
+                    "anthropic-version": "2023-06-01",
+                },
+                json={
+                    "model": settings.claude_model,
+                    "max_tokens": 4096,
+                    "messages": [{"role": "user", "content": prompt}]
+                },
+                timeout=120,
+            )
+            resp.raise_for_status()
+            text = resp.json()["content"][0]["text"].strip()
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0]
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0]
+            result = json.loads(text)
+            return result
+        except Exception as e:
+            logger.warning(f"AI分类ETF失败: {e}")
+            return {}
 
     async def get_sector_etf_map(self) -> dict[str, list[tuple[str, str]]]:
-        """动态获取板块->ETF映射（按成交额排序）"""
+        """从 etf_master.json 读取板块->ETF映射"""
         now = time.time()
         if self._etf_list_cache and now - self._etf_cache_time < self._etf_cache_ttl:
             return self._etf_list_cache
 
-        etfs = await self._fetch_all_etfs()
-        if not etfs:
-            return self._etf_list_cache  # 返回旧缓存
+        # 从本地文件读取（由 build_etf_master 生成）
+        try:
+            from pathlib import Path
+            etf_file = Path(__file__).parent.parent / "data" / "etf_master.json"
+            if etf_file.exists():
+                data = json.loads(etf_file.read_text())
+                etfs = data.get("etfs", {})
+                sectors = data.get("sectors", {})
 
-        # 按板块分类
-        sector_map: dict[str, list] = {}
-        for etf in etfs:
-            sector = self._classify_etf(etf["name"])
-            if sector:
-                if sector not in sector_map:
-                    sector_map[sector] = []
-                sector_map[sector].append((etf["code"], etf["name"], etf["amount"]))
+                # 构建 sector_map: {板块: [(code, name), ...]}
+                sector_map: dict[str, list] = {}
+                for sector, codes in sectors.items():
+                    if sector == "其他":
+                        continue
+                    sector_map[sector] = [
+                        (code, etfs[code]["name"])
+                        for code in codes[:5]
+                        if code in etfs
+                    ]
 
-        # 每个板块按成交额排序，只保留前5个
-        for sector in sector_map:
-            sector_map[sector].sort(key=lambda x: x[2], reverse=True)
-            sector_map[sector] = [(code, name) for code, name, _ in sector_map[sector][:5]]
+                self._etf_list_cache = sector_map
+                self._etf_cache_time = now
+                logger.info(f"从文件加载ETF映射，共 {len(sector_map)} 个板块")
+                return sector_map
+        except Exception as e:
+            logger.warning(f"读取 etf_master.json 失败: {e}")
 
-        self._etf_list_cache = sector_map
+        return self._etf_list_cache or {}
         self._etf_cache_time = now
         logger.info(f"更新ETF板块映射，共 {len(sector_map)} 个板块")
         return sector_map
@@ -315,36 +313,41 @@ class FundService:
 
         流程：
         1. 获取全量 ETF（代码+名称+成交额）
-        2. 按成交额排序，筛选日成交额 > min_amount_yi 亿的
-        3. 对筛选后的 ETF 拉详细介绍 + AI 精炼
-        4. 按名称关键词分类到板块
+        2. 按成交额排序，筛选日成交额 > min_amount_yi 亿的，排除宽基/债券
+        3. 爬取 ETF 详细介绍（投资范围）
+        4. AI 批量分类到板块 + 精炼描述
+        5. 获取 K 线数据
         """
         # Step 1: 获取全量 ETF
         etfs = await self._fetch_all_etfs()
         if not etfs:
-            return {"etfs": {}, "sectors": {}}
+            return {"etfs": {}, "sectors": {}, "sector_list": []}
 
-        # Step 2: 按成交额排序，筛选有投资意义的（日成交额 > 0.5亿）
+        # Step 2: 按成交额排序，筛选活跃 ETF，排除宽基/债券
         etfs.sort(key=lambda x: x["amount"], reverse=True)
         min_amount = min_amount_yi * 1e8
-        active_etfs = [e for e in etfs if e["amount"] >= min_amount]
-        logger.info(f"筛选日成交额>{min_amount_yi}亿：{len(active_etfs)}/{len(etfs)} 个ETF")
+        active_etfs = [
+            e for e in etfs
+            if e["amount"] >= min_amount and not self._should_exclude_etf(e["name"])
+        ]
+        logger.info(f"筛选日成交额>{min_amount_yi}亿（排除宽基/债券）：{len(active_etfs)}/{len(etfs)} 个ETF")
 
-        # 构建结果字典
+        # 构建结果字典（sector 稍后由 AI 填充）
         result_etfs = {}
         for etf in active_etfs:
             result_etfs[etf["code"]] = {
                 "code": etf["code"],
                 "name": etf["name"],
                 "amount_yi": round(etf["amount"] / 1e8, 2),
-                "sector": self._classify_etf(etf["name"]) or "其他",
+                "sector": "",  # AI 填充
+                "related": [],  # AI 填充
                 "change_5d": 0,
                 "change_20d": 0,
                 "kline": [],
                 "desc": "",
             }
 
-        # Step 3: 获取详细信息和K线
+        # Step 3: 获取详细信息
         logger.info(f"获取 {len(result_etfs)} 个ETF详情...")
         async with httpx.AsyncClient(headers=self.headers, timeout=30) as client:
             sem = asyncio.Semaphore(5)
@@ -354,13 +357,36 @@ class FundService:
                 async with sem:
                     info = await self._fetch_etf_raw_info(client, code)
                     info["code"] = code
+                    info["name"] = result_etfs[code]["name"]
                     return info
 
             tasks = [fetch_info(code) for code in result_etfs.keys()]
             raw_infos = await asyncio.gather(*tasks, return_exceptions=True)
             raw_infos = [r for r in raw_infos if isinstance(r, dict) and r.get("code")]
 
-            # 获取K线数据
+            # Step 4: AI 批量分类 + 精炼描述
+            logger.info(f"AI分类+精炼（{len(raw_infos)}个）...")
+            all_sectors = set()
+            for i in range(0, len(raw_infos), 30):
+                batch = raw_infos[i:i+30]
+                # AI 分类
+                classify_result = await self._ai_classify_etfs(client, batch)
+                classifications = classify_result.get("分类结果", {})
+                batch_sectors = classify_result.get("板块列表", [])
+                all_sectors.update(batch_sectors)
+
+                for code, info in classifications.items():
+                    if code in result_etfs:
+                        result_etfs[code]["sector"] = info.get("sector", "其他")
+                        result_etfs[code]["related"] = info.get("related", [])
+
+                # AI 精炼描述
+                descs = await self._summarize_etf_desc(client, batch)
+                for code, desc in descs.items():
+                    if code in result_etfs:
+                        result_etfs[code]["desc"] = desc
+
+            # Step 5: 获取K线数据
             logger.info("获取K线数据...")
             for code in result_etfs.keys():
                 secid = f"1.{code}" if code.startswith("5") else f"0.{code}"
@@ -370,22 +396,19 @@ class FundService:
                     result_etfs[code]["change_20d"] = kline_data.get("change_20d", 0)
                     result_etfs[code]["kline"] = kline_data.get("kline", [])
 
-            # Step 4: AI 批量精炼描述
-            logger.info(f"AI精炼描述（{len(raw_infos)}个）...")
-            for i in range(0, len(raw_infos), 20):
-                batch = raw_infos[i:i+20]
-                descs = await self._summarize_etf_desc(client, batch)
-                for code, desc in descs.items():
-                    if code in result_etfs:
-                        result_etfs[code]["desc"] = desc
-
-        # Step 5: 构建板块索引
+        # Step 6: 构建板块索引
         result_sectors = {}
         for code, etf in result_etfs.items():
-            sector = etf["sector"]
+            sector = etf["sector"] or "其他"
             if sector not in result_sectors:
                 result_sectors[sector] = []
             result_sectors[sector].append(code)
+            # related 板块也加入索引
+            for rel in etf.get("related", []):
+                if rel not in result_sectors:
+                    result_sectors[rel] = []
+                if code not in result_sectors[rel]:
+                    result_sectors[rel].append(code)
 
         # 每个板块按成交额排序
         for sector in result_sectors:
@@ -393,7 +416,10 @@ class FundService:
                 key=lambda c: result_etfs[c]["amount_yi"], reverse=True
             )
 
-        return {"etfs": result_etfs, "sectors": result_sectors}
+        # 生成板块列表（排除"其他"）
+        sector_list = sorted([s for s in result_sectors.keys() if s != "其他"])
+
+        return {"etfs": result_etfs, "sectors": result_sectors, "sector_list": sector_list}
 
     async def get_fund_info(self, code: str) -> Optional[dict]:
         """获取基金实时信息"""

@@ -91,6 +91,10 @@ function renderSectorCard(sector: any, etfMaster: Record<string, any>): string {
   }
 
   const etfTableHtml = `
+    <div class="etf-labels">
+      <span>当日行情</span>
+      <span>20日历史</span>
+    </div>
     <table class="etf-table" data-sector="${sector.name}">
       <thead>
         <tr>
@@ -153,7 +157,7 @@ export function renderHome(data: LatestData, etfMaster: Record<string, any>): st
   <div class="container">
     <header>
       <h1>ETF风向标</h1>
-      <span class="meta">最后更新：${formatTime(updated_at)}</span>
+      <span class="meta">${formatTime(updated_at)}</span>
       <a href="/news" class="news-total">总新闻${news_count}条</a>
       <div class="source-stats">${sourceStatsHtml}</div>
       <a href="https://github.com/lichengzhe/etfwind" target="_blank" class="github-link" title="GitHub">
