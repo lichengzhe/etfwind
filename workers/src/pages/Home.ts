@@ -91,14 +91,10 @@ function renderSectorCard(sector: any, etfMaster: Record<string, any>): string {
   }
 
   const etfTableHtml = `
-    <div class="etf-labels">
-      <span>当日行情</span>
-      <span>20日历史</span>
-    </div>
     <table class="etf-table" data-sector="${sector.name}">
       <thead>
         <tr>
-          <th>ETF基金推荐</th><th>价格</th>
+          <th>ETF推荐</th><th>价格</th>
           <th>今日</th><th>成交</th><th>20日</th><th>走势</th>
         </tr>
       </thead>
@@ -123,7 +119,14 @@ function renderSectorCard(sector: any, etfMaster: Record<string, any>): string {
 export function renderHome(data: LatestData, etfMaster: Record<string, any>): string {
   const { result, updated_at, news_count, source_stats } = data
 
+  // Source 按权威度排序
+  const sourceOrder = ['Bloomberg', 'WSJ', 'CNBC', '财联社', '财联社电报', '新浪财经', '东方财富', '东财快讯', '新浪7x24', '金十数据', '华尔街见闻']
   const sourceStatsHtml = Object.entries(source_stats)
+    .sort((a, b) => {
+      const ia = sourceOrder.indexOf(a[0])
+      const ib = sourceOrder.indexOf(b[0])
+      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib)
+    })
     .map(([name, count]) => `<a href="/news?source=${encodeURIComponent(name)}">${name} ${count}</a>`)
     .join('')
 
