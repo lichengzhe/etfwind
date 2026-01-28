@@ -13,6 +13,9 @@ from .sina_finance import SinaFinanceCollector
 from .rss_base import RSSCollector
 from .cnbc import CNBCCollector
 from .bloomberg import BloombergCollector
+from .techcrunch import TechCrunchCollector
+from .bbc import BBCCollector
+from .huxiu import HuxiuCollector
 
 # Playwright 采集器（可选）
 _playwright_collectors = []
@@ -48,6 +51,9 @@ class NewsAggregator:
             self.collectors.extend([
                 CNBCCollector(),
                 BloombergCollector(),
+                TechCrunchCollector(),
+                BBCCollector(),
+                HuxiuCollector(),
             ])
         # Playwright 采集器
         self.playwright_collectors = []
@@ -114,5 +120,7 @@ __all__ = [
     "SinaFinanceCollector",
     "CNBCCollector",
     "BloombergCollector",
+    "TechCrunchCollector",
+    "BBCCollector",
     "NewsAggregator",
 ]
