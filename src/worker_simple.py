@@ -340,7 +340,7 @@ async def fetch_etf_map(force: bool = False):
     logger.info("生成 ETF Master 数据...")
     try:
         fund_service._etf_cache_time = 0
-        master = await fund_service.build_etf_master(min_amount_yi=5.0)
+        master = await fund_service.build_etf_master(min_amount_yi=1.0)
 
         if not master.get("etfs"):
             logger.warning("未获取到ETF数据")
