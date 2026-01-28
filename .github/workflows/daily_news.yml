@@ -34,9 +34,10 @@ jobs:
 
       - name: Upload to Cloudflare R2
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_ENDPOINT_URL: https://3cd484f565a03d34b3c765a2e17a8989.r2.cloudflarestorage.com
         run: |
-          npm install -g wrangler
-          wrangler r2 object put invest-data/latest.json --file src/web/data/latest.json --remote
-          wrangler r2 object put invest-data/news.json --file src/web/data/news.json --remote
-          wrangler r2 object put invest-data/etf_master.json --file src/web/data/etf_master.json --remote
+          aws s3 cp src/web/data/latest.json s3://invest-data/latest.json
+          aws s3 cp src/web/data/news.json s3://invest-data/news.json
+          aws s3 cp src/web/data/etf_master.json s3://invest-data/etf_master.json
