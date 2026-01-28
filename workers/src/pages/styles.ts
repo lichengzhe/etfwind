@@ -31,8 +31,9 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
   .card p { font-size: 12px; }
   .sector-name { font-size: 15px; }
   .sector-analysis { font-size: 11px; }
-  .etf-table { font-size: 12px; }
-  .etf-table td:nth-child(2), .etf-table td:nth-child(4) { display: none; }
+  .sector-card { overflow-x: hidden; }
+  .etf-table { font-size: 12px; table-layout: fixed; }
+  .etf-table td:nth-child(2), .etf-table td:nth-child(4) { display: none; width: 0; padding: 0; }
   .etf-table td:nth-child(3) { border-left: none; }
   .etf-table td:nth-child(5) { border-left: none; }
   .etf-table .sparkline { width: 60px; }
