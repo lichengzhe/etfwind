@@ -32,10 +32,11 @@ jobs:
           CLAUDE_BASE_URL: ${{ secrets.CLAUDE_BASE_URL }}
         run: python -m src.worker_simple
 
-      - name: Commit and push results
+      - name: Upload to Cloudflare R2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add src/web/data/*.json || true
-          git diff --staged --quiet || git commit -m "📊 Update $(date -u +%H:%M)"
-          git push
+          npm install -g wrangler
+          wrangler r2 object put invest-data/latest.json --file src/web/data/latest.json --remote
+          wrangler r2 object put invest-data/news.json --file src/web/data/news.json --remote
+          wrangler r2 object put invest-data/etf_master.json --file src/web/data/etf_master.json --remote
