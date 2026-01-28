@@ -426,8 +426,46 @@ class FundService:
                 key=lambda c: result_etfs[c]["amount_yi"], reverse=True
             )
 
-        # 生成板块列表（排除"其他"）
-        sector_list = sorted([s for s in result_sectors.keys() if s != "其他"])
+        # 生成板块列表（排除无效板块）
+        exclude_sectors = {
+            "其他", "排除", "宽基", "宽基指数", "债券", "信用债", "科创债", "城投债", "地方债",
+            "货币", "货币基金", "策略", "期货", "保证金", "自由现金流",
+            "跨境", "海外", "巴西", "沙特", "纳斯达克", "标普", "日经",
+            "中证500", "中证1000", "创业板", "科创板", "沪深300", "上证50",
+        }
+        # 合并相似板块
+        sector_merge = {
+            "AI": "人工智能", "有色金属": "有色", "贵金属": "黄金",
+            "港股通": "港股", "能源化工": "化工", "能源": "石油",
+            "非银金融": "证券", "非银": "证券", "金融": "银行",
+            "金属": "有色", "资源": "有色", "稀有金属": "有色",
+            "工业金属": "有色", "航天": "军工", "卫星": "军工",
+            "智能制造": "机器人",
+        }
+
+        # 应用合并
+        for code, etf in result_etfs.items():
+            if etf["sector"] in sector_merge:
+                etf["sector"] = sector_merge[etf["sector"]]
+
+        # 重建板块索引
+        result_sectors = {}
+        for code, etf in result_etfs.items():
+            sector = etf["sector"]
+            if sector in exclude_sectors:
+                continue
+            if sector not in result_sectors:
+                result_sectors[sector] = []
+            result_sectors[sector].append(code)
+
+        # 每个板块按成交额排序
+        for sector in result_sectors:
+            result_sectors[sector].sort(
+                key=lambda c: result_etfs[c]["amount_yi"], reverse=True
+            )
+
+        sector_list = sorted(result_sectors.keys())
+        logger.info(f"最终板块列表: {sector_list}")
 
         return {"etfs": result_etfs, "sectors": result_sectors, "sector_list": sector_list}
 
