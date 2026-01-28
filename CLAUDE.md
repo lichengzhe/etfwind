@@ -32,18 +32,18 @@ GitHub Actions (每30分钟定时触发)
         ↓
 worker_simple.py → collectors/ → realtime.py → src/web/data/*.json
                    (10个采集器)   (Claude API)        ↓
-                                              GitHub 自动提交
+                                              wrangler 上传到 R2
                                                      ↓
                                               Fly.io (app_simple.py)
-                                              从 GitHub raw 读取 JSON
+                                              从 Cloudflare R2 读取 JSON
 ```
 
 **两种运行模式：**
 
 1. **简化模式（当前使用）**：
    - GitHub Actions 运行 `worker_simple.py` 采集+分析
-   - 结果存入 `src/web/data/latest.json` 并提交到 GitHub
-   - Fly.io 运行 `app_simple.py`，从 GitHub raw URL 读取数据
+   - 结果通过 wrangler 上传到 Cloudflare R2
+   - Fly.io 运行 `app_simple.py`，从 R2 公开 URL 读取数据
    - 无需数据库，轻量部署
 
 2. **完整模式（可选）**：
@@ -72,6 +72,11 @@ worker_simple.py → collectors/ → realtime.py → src/web/data/*.json
 - `CLAUDE_BASE_URL`: API 地址，支持中转
 - `CLAUDE_MODEL`: 模型名称，默认 claude-sonnet-4-20250514
 
+Cloudflare R2（数据存储）：
+- Bucket: `invest-data`
+- 公开 URL: `https://pub-bf3ac083583c4798b8f0091067ae106d.r2.dev`
+- GitHub Secrets: `CLOUDFLARE_API_TOKEN`
+
 可选（完整模式）：
 - `SUPABASE_URL`: Supabase 项目 URL
 - `SUPABASE_KEY`: Supabase anon key
@@ -80,7 +85,7 @@ worker_simple.py → collectors/ → realtime.py → src/web/data/*.json
 
 - **Web**: Fly.io（新加坡，256MB，auto_stop）
 - **采集/分析**: GitHub Actions（每 30 分钟，含 Playwright）
-- **数据存储**: GitHub 仓库 `src/web/data/*.json`
+- **数据存储**: Cloudflare R2（`invest-data` bucket）
 - **URL**: https://invest-report.fly.dev/
 
 ## Key Data Structures
@@ -158,6 +163,8 @@ worker_simple.py → collectors/ → realtime.py → src/web/data/*.json
 3. 发现问题 → 修复代码 → 重新部署 → 再次验证
 4. 完成后用 browser_close 关闭浏览器
 ```
+
+**注意**：不要用 browser_take_screenshot 截图后发给自己看，图片会导致 context 溢出。始终使用 browser_snapshot 获取文本结构。
 
 ### AI 结构化使用原则
 
