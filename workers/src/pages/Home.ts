@@ -133,7 +133,16 @@ async function loadCommodityCycle() {
       const c = data.commodities[k];
       const isLeader = k === data.cycle.leader;
       const chg = c ? (c.change_5d >= 0 ? '+' : '') + c.change_5d.toFixed(1) + '%' : '--';
-      return '<span class="cycle-stage ' + (isLeader ? 'active' : '') + '">' + icons[k] + ' ' + names[k] + ' <small>' + chg + '</small></span>';
+      let spark = '';
+      if (c && c.kline && c.kline.length > 1) {
+        const kline = c.kline;
+        const min = Math.min(...kline), max = Math.max(...kline);
+        const range = max - min || 1;
+        const pts = kline.map((v,i) => (i*60/(kline.length-1))+','+(18-(v-min)/range*16)).join(' ');
+        const color = kline[kline.length-1] >= kline[0] ? '#dc2626' : '#16a34a';
+        spark = '<svg class="cycle-chart" viewBox="0 0 60 18" preserveAspectRatio="none"><polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="1.5"/></svg>';
+      }
+      return '<span class="cycle-stage ' + (isLeader ? 'active' : '') + '">' + icons[k] + ' ' + names[k] + ' <small>' + chg + '</small>' + spark + '</span>';
     }).join('');
   } catch (e) { console.warn('周期数据加载失败', e); }
 }

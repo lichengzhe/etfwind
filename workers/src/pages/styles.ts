@@ -74,8 +74,9 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
 .cycle-card { display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
 .cycle-stage { flex: 1; min-width: 100px; font-size: 13px; padding: 4px 10px; background: #f9fafb; border-radius: 6px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
 .cycle-stage.active { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); font-weight: 600; }
-.cycle-stage small { font-size: 11px; color: #6b7280; margin-left: auto; }
+.cycle-stage small { font-size: 11px; color: #6b7280; }
 .cycle-stage.active small { color: #b45309; }
+.cycle-stage .cycle-chart { width: 60px; height: 18px; margin-left: auto; }
 @media (max-width: 600px) {
   .container { padding: 12px; }
   header { flex-wrap: wrap; gap: 6px; }
