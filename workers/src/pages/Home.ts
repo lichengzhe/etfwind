@@ -33,7 +33,7 @@ async function loadGlobalIndices() {
     const el = document.getElementById('global-indices');
     if (!el) return;
     const order = ['usdcny', 'gold', 'btc', 'sh', 'nasdaq'];
-    const symbols = { usdcny: '$', gold: '🥇', btc: '₿', sh: '📈', nasdaq: '📊' };
+    const symbols = { usdcny: '💵', gold: '🥇', btc: '₿', sh: '📈', nasdaq: '📊' };
     const html = order.map(k => {
       const d = data[k];
       if (!d || !d.kline?.length) return '';
@@ -41,10 +41,10 @@ async function loadGlobalIndices() {
       const kline = d.kline;
       const min = Math.min(...kline), max = Math.max(...kline);
       const range = max - min || 1;
-      const pts = kline.map((v,i) => (i*80/(kline.length-1))+','+(20-(v-min)/range*20)).join(' ');
+      const pts = kline.map((v,i) => (i*120/(kline.length-1))+','+(20-(v-min)/range*20)).join(' ');
       const color = kline[kline.length-1] >= kline[0] ? '#dc2626' : '#16a34a';
       const sym = symbols[k] || '';
-      return '<span class="idx">'+sym+' <b>'+d.name+'</b> '+priceStr+' <svg width="80" height="20"><polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="2"/></svg></span>';
+      return '<span class="idx"><span class="idx-name"><b>'+d.name+'</b> '+sym+'</span><span class="idx-price">'+priceStr+'</span><svg class="idx-chart" viewBox="0 0 120 20" preserveAspectRatio="none"><polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="1.5"/></svg></span>';
     }).join('');
     el.innerHTML = html;
   } catch (e) { console.warn('全球指标加载失败', e); }
@@ -105,7 +105,7 @@ function renderEtfs(table, etfs) {
     if (abs >= 1) return dir + '-1';
     return dir;
   };
-  const fmt = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+  const fmt = v => Math.abs(v).toFixed(1) + '%';
   const fmtPrice = v => v == null ? '--' : v.toFixed(3);
   for (const f of etfs) {
     const row = table.querySelector(\`tr[data-code="\${f.code}"]\`);
@@ -154,8 +154,8 @@ function renderSectorCard(sector: any, etfMaster: Record<string, any>): string {
         <td class="price">--</td>
         <td class="amount">--</td>
         <td class="change">--</td>
-        <td class="${chgClass(f.change_5d || 0)}">${f.change_5d >= 0 ? '+' : ''}${(f.change_5d || 0).toFixed(1)}%</td>
-        <td class="${chgClass(f.change_20d || 0)}">${f.change_20d >= 0 ? '+' : ''}${(f.change_20d || 0).toFixed(1)}%</td>
+        <td class="${chgClass(f.change_5d || 0)}">${Math.abs(f.change_5d || 0).toFixed(1)}%</td>
+        <td class="${chgClass(f.change_20d || 0)}">${Math.abs(f.change_20d || 0).toFixed(1)}%</td>
         <td>${f.kline?.length ? `<svg class="sparkline" viewBox="0 0 100 16" preserveAspectRatio="none"><polyline points="${f.kline.map((v: number, i: number) => `${i * 100 / (f.kline.length - 1)},${16 - (v - Math.min(...f.kline)) / (Math.max(...f.kline) - Math.min(...f.kline) || 1) * 16}`).join(' ')}" fill="none" stroke="${f.kline[f.kline.length-1] >= f.kline[0] ? '#dc2626' : '#16a34a'}" stroke-width="1.2"/></svg>` : '-'}</td>
       </tr>
     `).join('')
@@ -217,6 +217,7 @@ export function renderHome(data: LatestData, etfMaster: Record<string, any>): st
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
   <title>ETF风向标</title>
   <style>${styles}</style>
 </head>

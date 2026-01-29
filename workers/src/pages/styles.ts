@@ -18,6 +18,8 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
 .card { background: #fff; border-radius: 10px; padding: 12px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
 .global-indices { display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
 .idx { font-size: 13px; padding: 4px 10px; background: #f9fafb; border-radius: 6px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+.idx-chart { width: 120px; height: 20px; }
+.idx-chart polyline { stroke-width: 2.5; }
 .idx svg { vertical-align: middle; }
 .card h2 { font-size: 16px; margin-bottom: 6px; color: #1a1a1a; }
 .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
@@ -76,6 +78,12 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
   .source-stats { flex-wrap: wrap; width: 100%; margin-top: 4px; }
   .source-stats a { font-size: 10px; padding: 3px 8px; }
   .github-link, .powered-by { display: none; }
+  .global-indices { flex-direction: column; gap: 4px; background: #fff; border-radius: 10px; padding: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .idx { width: 100%; background: transparent; padding: 2px 0; display: grid; grid-template-columns: 50px 32px 1fr; align-items: center; gap: 4px; }
+  .idx-name { font-size: 12px; }
+  .idx-price { font-size: 12px; text-align: right; }
+  .idx-chart { width: 100%; height: 18px; }
+  .idx-chart polyline { stroke-width: 2; }
   .sectors-grid { grid-template-columns: 1fr; }
   .card h2 { font-size: 15px; }
   .card p { font-size: 12px; }
@@ -84,12 +92,12 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
   .sector-card { overflow-x: hidden; }
   .etf-table { font-size: 12px; table-layout: fixed; }
   .etf-table thead { display: none; }
-  .etf-table td:nth-child(1) { width: 32%; }
+  .etf-table td:nth-child(1) { width: 41%; }
   .etf-table td:nth-child(2) { display: none; }
   .etf-table td:nth-child(3) { display: none; }
-  .etf-table td:nth-child(4) { width: 15%; }
-  .etf-table td:nth-child(5) { width: 15%; }
-  .etf-table td:nth-child(6) { width: 15%; }
+  .etf-table td:nth-child(4) { width: 12%; }
+  .etf-table td:nth-child(5) { width: 12%; }
+  .etf-table td:nth-child(6) { width: 12%; }
   .etf-table td:nth-child(7) { width: 23%; }
   .etf-table .sparkline { width: 100%; }
 }

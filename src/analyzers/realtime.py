@@ -33,43 +33,28 @@ ANALYSIS_PROMPT = """你是A股ETF投资分析师，分析新闻并输出投资�
 ## 可选板块
 {sector_list}
 
-## 输出JSON（FOTH Matrix）
+## 输出JSON
 ```json
 {{
-  "facts": [
-    "黄金价格突破2800美元",
-    "中芯国际股价上涨5%",
-    "美联储维持利率不变"
-  ],
-  "opinions": {{
-    "sentiment": "偏乐观",
-    "hot_words": ["避险", "看涨", "突破"],
-    "media_bias": "多数媒体看多黄金"
-  }},
   "market_view": "🎯 市场状态一句话（20字内）",
-  "narrative": "市场全景分析（150字，基于facts判断趋势，参考opinions校准情绪）",
+  "summary": "📊 市场综述（200-250字）：融合关键事实与趋势分析，用📈📉💰🔥等emoji标注重点数据和转折，如「📈金价突破5500美元创新高」「🔥机器人板块订单放量」。行文流畅，一气呵成。",
+  "sentiment": "偏乐观",
   "sectors": [
     {{
       "name": "芯片",
       "heat": 5,
       "direction": "利好",
-      "analysis": "板块分析（80字，基于facts的逻辑链条）",
-      "catalyst": "中芯国际涨5%"
+      "analysis": "板块分析（80字）"
     }}
-  ],
-  "risk_level": "中"
+  ]
 }}
 ```
 
 ## 要求
-- facts: 3-5条纯客观事件（价格、涨跌、政策），不含情绪词和预测
-- opinions: 从新闻中提取的市场情绪信号
-  - sentiment: 整体情绪（偏乐观/偏悲观/分歧/平淡）
-  - hot_words: 3-5个高频情绪词（避险、恐慌、狂热、看涨等）
-  - media_bias: 媒体倾向一句话总结
-- sectors: 最多6个，按热度排序
-- name: 必须从"可选板块"中选择
-- catalyst: 该板块的核心驱动事件（纯fact）
+- market_view: 一句话概括今日市场主线
+- summary: 综合分析，包含3-5个关键事实+趋势判断，用emoji突出重点
+- sentiment: 整体情绪（偏乐观/偏悲观/分歧/平淡）
+- sectors: 最多6个，按热度排序，name必须从"可选板块"中选择
 """
 
 

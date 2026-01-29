@@ -149,7 +149,7 @@ app.get('/api/etf-master', async (c) => {
   return c.json(etfMaster)
 })
 
-// API: 全球指标（含90天K线）
+// API: 全球指标（含180天K线）
 app.get('/api/global-indices', async (c) => {
   const indices: Record<string, any> = {}
 
@@ -163,7 +163,7 @@ app.get('/api/global-indices', async (c) => {
   try {
     const fetches = Object.entries(emCodes).map(async ([key, { secid, name }]) => {
       const resp = await fetch(
-        `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${secid}&fields1=f1,f2,f3&fields2=f51,f52&klt=101&fqt=1&end=20500101&lmt=90`
+        `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${secid}&fields1=f1,f2,f3&fields2=f51,f52&klt=101&fqt=1&end=20500101&lmt=180`
       )
       const data = await resp.json() as any
       const klines = data?.data?.klines || []
@@ -175,10 +175,10 @@ app.get('/api/global-indices', async (c) => {
     await Promise.all(fetches)
   } catch (e) { console.error('东方财富K线API错误:', e) }
 
-  // Yahoo Finance：比特币90天K线
+  // Yahoo Finance：比特币180天K线
   try {
     const btcResp = await fetch(
-      'https://query1.finance.yahoo.com/v8/finance/chart/BTC-USD?interval=1d&range=3mo',
+      'https://query1.finance.yahoo.com/v8/finance/chart/BTC-USD?interval=1d&range=6mo',
       { headers: { 'User-Agent': 'Mozilla/5.0' } }
     )
     const btcData = await btcResp.json() as any
@@ -189,10 +189,10 @@ app.get('/api/global-indices', async (c) => {
     }
   } catch (e) { console.error('Yahoo BTC API错误:', e) }
 
-  // Yahoo Finance：纳斯达克90天K线
+  // Yahoo Finance：纳斯达克180天K线
   try {
     const nasdaqResp = await fetch(
-      'https://query1.finance.yahoo.com/v8/finance/chart/%5EIXIC?interval=1d&range=3mo',
+      'https://query1.finance.yahoo.com/v8/finance/chart/%5EIXIC?interval=1d&range=6mo',
       { headers: { 'User-Agent': 'Mozilla/5.0' } }
     )
     const nasdaqData = await nasdaqResp.json() as any

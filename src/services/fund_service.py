@@ -680,7 +680,7 @@ class FundService:
             if len(closes) >= 21:
                 change_20d = round((today_close - closes[-21]) / closes[-21] * 100, 2)
 
-            kline_data = closes[-20:] if len(closes) >= 20 else closes
+            kline_data = closes[-90:] if len(closes) >= 90 else closes
             return {
                 "change_5d": change_5d,
                 "change_20d": change_20d,
@@ -758,7 +758,7 @@ class FundService:
                     "klt": "101",
                     "fqt": "1",
                     "end": "20500101",
-                    "lmt": "25",
+                    "lmt": "95",
                 },
             )
             klines = resp.json().get("data", {}).get("klines", [])
@@ -777,7 +777,7 @@ class FundService:
             if len(closes) >= 21:
                 change_20d = round((today_close - closes[-21]) / closes[-21] * 100, 2)
 
-            kline_data = closes[-20:] if len(closes) >= 20 else closes
+            kline_data = closes[-90:] if len(closes) >= 90 else closes
             result = {
                 "change_5d": change_5d,
                 "change_20d": change_20d,
