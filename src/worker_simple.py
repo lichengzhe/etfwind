@@ -223,7 +223,6 @@ async def run():
             except Exception as e:
                 logger.error(f"❌ 读取历史数据失败: {e}")
         await save_news(news.items, beijing_tz)
-        await fetch_etf_map()
         logger.info("⚠️ 运行结束（分析失败）")
         return None
 
