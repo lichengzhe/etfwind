@@ -44,6 +44,7 @@ def archive_data(beijing_tz):
                     for s in result.get("sectors", [])[:4]
                 ],
                 "market_view": result.get("market_view", ""),
+                "commodity_cycle": result.get("commodity_cycle", {}),
             }
             daily_file.write_text(json.dumps(data, ensure_ascii=False, indent=2))
             logger.info(f"✅ 归档成功: {daily_file.name}")
@@ -177,6 +178,15 @@ def format_history_context(history: list[dict]) -> str:
                 parts.append(f"热点:{sector_str}")
             if parts:
                 lines.append(f"**{h['date']}**: {' | '.join(parts)}")
+
+    # History Commodity Cycle（商品周期）
+    lines.append("\n### History Commodity Cycle（商品周期）")
+    for h in history[:3]:
+        cycle = h.get("commodity_cycle", {})
+        if cycle:
+            stage_name = cycle.get("stage_name", "")
+            if stage_name:
+                lines.append(f"**{h['date']}**: {stage_name}")
 
     return "\n".join(lines)
 

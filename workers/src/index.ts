@@ -4,6 +4,7 @@ import type { Env, LatestData, NewsItem } from './types'
 import { fetchFunds } from './services/fund'
 import { renderHome } from './pages/Home'
 import { renderNews } from './pages/News'
+import { renderCycle } from './pages/Cycle'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -273,6 +274,11 @@ app.get('/api/commodity-cycle', async (c) => {
       momentum: momentum.map(m => ({ ...m, name: commodities[m.key]?.name }))
     }
   })
+})
+
+// 周期页面
+app.get('/cycle', (c) => {
+  return c.html(renderCycle())
 })
 
 // 新闻页
