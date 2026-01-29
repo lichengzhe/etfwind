@@ -129,15 +129,12 @@ async function loadCommodityCycle() {
     const names = { gold: '黄金', silver: '白银', copper: '铜', oil: '石油', corn: '农产品' };
     const icons = { gold: '🥇', silver: '🥈', copper: '🔶', oil: '🛢️', corn: '🌽' };
 
-    const stages = order.map((k, i) => {
+    el.innerHTML = order.map(k => {
       const c = data.commodities[k];
       const isLeader = k === data.cycle.leader;
-      const chg = c ? c.change_5d.toFixed(1) : '--';
-      const cls = isLeader ? 'active' : '';
-      return '<span class="cycle-stage ' + cls + '">' + icons[k] + ' ' + names[k] + ' <small>' + (c ? (c.change_5d >= 0 ? '+' : '') + chg + '%' : '') + '</small></span>';
-    }).join('<span class="cycle-arrow">→</span>');
-
-    el.innerHTML = '<div class="cycle-bar">' + stages + '</div><div class="cycle-hint">当前：' + data.cycle.stage_name + ' | 下一站：' + names[data.cycle.next] + '</div>';
+      const chg = c ? (c.change_5d >= 0 ? '+' : '') + c.change_5d.toFixed(1) + '%' : '--';
+      return '<span class="cycle-stage ' + (isLeader ? 'active' : '') + '">' + icons[k] + ' ' + names[k] + ' <small>' + chg + '</small></span>';
+    }).join('');
   } catch (e) { console.warn('周期数据加载失败', e); }
 }
 
