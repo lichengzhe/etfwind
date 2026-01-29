@@ -60,3 +60,12 @@ export interface NewsItem {
 export interface Env {
   R2: R2Bucket
 }
+
+// 板块别名映射（AI输出 -> ETF板块）
+export const SECTOR_ALIAS: Record<string, string> = {
+  '新能源车': '锂电池',
+  '新能源': '光伏',
+  '创新药': '医药',
+  '贵金属': '黄金',
+  '券商': '证券',
+}

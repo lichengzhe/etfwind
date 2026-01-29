@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import type { Env, LatestData, NewsItem } from './types'
+import { SECTOR_ALIAS } from './types'
 import { fetchFunds } from './services/fund'
 import { renderHome } from './pages/Home'
 import { renderNews } from './pages/News'
@@ -102,18 +103,12 @@ app.get('/api/batch-sector-etfs', async (c) => {
   const sectors = c.req.query('sectors')?.split(',').filter(Boolean) || []
   const etfMaster = await loadEtfMaster(c.env.R2)
 
-  // 板块别名映射（AI输出 -> ETF板块）
-  const sectorAlias: Record<string, string> = {
-    '新能源车': '锂电池', '新能源': '光伏', '创新药': '医药',
-    '贵金属': '黄金', '券商': '证券',
-  }
-
   const result: Record<string, any[]> = {}
   const allCodes: string[] = []
 
-  // 找出每个板块的 ETF（按成交额排序，与服务端渲染一致）
+  // 找出每个板块的 ETF（按成交额排序）
   for (const sector of sectors) {
-    const lookupSector = sectorAlias[sector] || sector
+    const lookupSector = SECTOR_ALIAS[sector] || sector
     const etfs = Object.values(etfMaster)
       .filter((e: any) => e.sector === lookupSector)
       .sort((a: any, b: any) => (b.amount_yi || 0) - (a.amount_yi || 0))

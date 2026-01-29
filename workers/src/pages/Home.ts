@@ -1,4 +1,5 @@
 import type { LatestData } from '../types'
+import { SECTOR_ALIAS } from '../types'
 import { styles } from './styles'
 
 // 格式化时间（年月日 时分）
@@ -149,7 +150,6 @@ function renderEtfs(table, etfs) {
   }
 }
 
-loadIndicators();
 loadSectorEtfs();
 `
 
@@ -163,16 +163,10 @@ function chgClass(v: number): string {
   return dir
 }
 
-// 板块别名映射（AI输出 -> ETF板块）
-const sectorAlias: Record<string, string> = {
-  '新能源车': '锂电池', '新能源': '光伏', '创新药': '医药',
-  '贵金属': '黄金', '券商': '证券',
-}
-
 // 渲染板块卡片
 function renderSectorCard(sector: any, etfMaster: Record<string, any>): string {
   // 服务端预渲染 ETF 占位数据，按成交额排序
-  const lookupSector = sectorAlias[sector.name] || sector.name
+  const lookupSector = SECTOR_ALIAS[sector.name] || sector.name
   const sectorEtfs = Object.values(etfMaster)
     .filter((e: any) => e.sector === lookupSector)
     .sort((a: any, b: any) => (b.amount_yi || 0) - (a.amount_yi || 0))
@@ -296,6 +290,7 @@ export function renderHome(data: LatestData, etfMaster: Record<string, any>): st
     <div class="sectors-grid">
       ${sectorsHtml}
     </div>
+  </div>
 
   <script>${clientScript}</script>
 </body>
