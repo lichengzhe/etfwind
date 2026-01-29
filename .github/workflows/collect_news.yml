@@ -2,10 +2,9 @@ name: Collect News
 
 on:
   schedule:
-    # 交易日 8:00-18:00 (UTC+8) 每小时
-    - cron: '0 0-10 * * 1-5'
-    # 晚间每4小时
-    - cron: '0 14,18,22 * * *'
+    # 6:00-23:00 (UTC+8) 每小时，即 UTC 22:00-15:00
+    - cron: '0 22-23 * * *'
+    - cron: '0 0-15 * * *'
   workflow_dispatch:
 
 jobs:
