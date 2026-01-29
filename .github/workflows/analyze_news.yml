@@ -1,63 +1,47 @@
-name: Daily Investment News
+name: Analyze News
 
 on:
-  schedule:
-    # 交易日 8:00-18:00 (UTC+8) 每小时运行
-    - cron: '0 0-10 * * 1-5'
-    # 晚间 22:00, 02:00, 06:00 (UTC+8) 每4小时一次
-    - cron: '0 14,18,22 * * *'
+  workflow_run:
+    workflows: ["Collect News"]
+    types: [completed]
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  collect-and-analyze:
+  analyze:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Cache pip packages
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
+          key: ${{ runner.os }}-pip-analyze-${{ hashFiles('pyproject.toml') }}
 
-      - name: Install dependencies
-        run: pip install .
+      - run: pip install .
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('pyproject.toml') }}
-
-      - name: Install Playwright browsers
-        run: python -m playwright install chromium --with-deps
-
-      - name: Download archive from R2
+      - name: Download from R2
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_ENDPOINT_URL: https://3cd484f565a03d34b3c765a2e17a8989.r2.cloudflarestorage.com
         run: |
           mkdir -p src/data/archive
+          aws s3 cp s3://invest-data/news_raw.json src/data/news_raw.json || true
           aws s3 sync s3://invest-data/archive/ src/data/archive/ || true
           aws s3 cp s3://invest-data/latest.json src/data/latest.json || true
 
-      - name: Run collection and analysis
+      - name: Run analysis
         env:
           CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
           CLAUDE_BASE_URL: ${{ secrets.CLAUDE_BASE_URL }}
-        run: python -m src.worker_simple
+        run: python -m src.analyze_news
 
-      - name: Upload to Cloudflare R2
+      - name: Upload to R2
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
