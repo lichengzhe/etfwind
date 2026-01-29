@@ -277,37 +277,30 @@ class FundService:
             return {}
 
     async def get_sector_etf_map(self) -> dict[str, list[tuple[str, str]]]:
-        """从 etf_master.json 读取板块->ETF映射"""
+        """读取板块->ETF映射（优先使用固定列表）"""
         now = time.time()
         if self._etf_list_cache and now - self._etf_cache_time < self._etf_cache_ttl:
             return self._etf_list_cache
 
-        # 从本地文件读取（由 build_etf_master 生成）
-        try:
-            from pathlib import Path
-            etf_file = Path(__file__).parent.parent / "data" / "etf_master.json"
-            if etf_file.exists():
-                data = json.loads(etf_file.read_text())
-                etfs = data.get("etfs", {})
-                sectors = data.get("sectors", {})
+        from pathlib import Path
 
-                # 构建 sector_map: {板块: [(code, name), ...]}
+        # 优先使用固定的 etf_sectors.json
+        sectors_file = Path(__file__).parent.parent.parent / "config" / "etf_sectors.json"
+        if sectors_file.exists():
+            try:
+                data = json.loads(sectors_file.read_text())
                 sector_map: dict[str, list] = {}
-                for sector, codes in sectors.items():
-                    if sector == "其他":
+                for sector, etfs in data.items():
+                    if sector.startswith("_"):  # 跳过 _meta
                         continue
-                    sector_map[sector] = [
-                        (code, etfs[code]["name"])
-                        for code in codes[:5]
-                        if code in etfs
-                    ]
+                    sector_map[sector] = [(e["code"], e["name"]) for e in etfs]
 
                 self._etf_list_cache = sector_map
                 self._etf_cache_time = now
-                logger.info(f"从文件加载ETF映射，共 {len(sector_map)} 个板块")
+                logger.info(f"从固定列表加载ETF映射，共 {len(sector_map)} 个板块")
                 return sector_map
-        except Exception as e:
-            logger.warning(f"读取 etf_master.json 失败: {e}")
+            except Exception as e:
+                logger.warning(f"读取 etf_sectors.json 失败: {e}")
 
         return self._etf_list_cache or {}
 

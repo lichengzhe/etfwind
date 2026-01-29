@@ -35,17 +35,12 @@ jobs:
           mkdir -p src/data/archive
           aws s3 sync s3://invest-data/archive/ src/data/archive/ || true
           aws s3 cp s3://invest-data/latest.json src/data/latest.json || true
-          aws s3 cp s3://invest-data/etf_master.json src/data/etf_master.json || true
 
       - name: Run collection and analysis
         env:
           CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
           CLAUDE_BASE_URL: ${{ secrets.CLAUDE_BASE_URL }}
         run: python -m src.worker_simple
-
-      - name: Check weekday
-        id: check-day
-        run: echo "weekday=$(date +%u)" >> $GITHUB_OUTPUT
 
       - name: Upload to Cloudflare R2
         env:
@@ -56,14 +51,3 @@ jobs:
           aws s3 cp src/data/latest.json s3://invest-data/latest.json
           aws s3 cp src/data/news.json s3://invest-data/news.json
           aws s3 sync src/data/archive/ s3://invest-data/archive/
-
-      - name: Upload ETF Master (Monday only)
-        if: github.event_name == 'workflow_dispatch' || steps.check-day.outputs.weekday == '1'
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          AWS_ENDPOINT_URL: https://3cd484f565a03d34b3c765a2e17a8989.r2.cloudflarestorage.com
-        run: |
-          if [ -f src/data/etf_master.json ]; then
-            aws s3 cp src/data/etf_master.json s3://invest-data/etf_master.json
-          fi

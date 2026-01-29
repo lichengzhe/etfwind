@@ -175,19 +175,19 @@ async def run():
     finally:
         await agg.close()
 
-    # 读取 sector_list（从 etf_master.json）
+    # 读取 sector_list（从固定的 etf_sectors.json）
     logger.info("=== 第2步: 读取板块配置 ===")
     sector_list = None
-    etf_file = DATA_DIR / "etf_master.json"
-    if etf_file.exists():
+    sectors_file = Path(__file__).parent.parent / "config" / "etf_sectors.json"
+    if sectors_file.exists():
         try:
-            etf_data = json.loads(etf_file.read_text())
-            sector_list = etf_data.get("sector_list", [])
+            sectors_data = json.loads(sectors_file.read_text())
+            sector_list = [k for k in sectors_data.keys() if not k.startswith("_")]
             logger.info(f"✅ 读取到 {len(sector_list)} 个可选板块")
         except Exception as e:
-            logger.warning(f"⚠️ 读取 sector_list 失败: {e}")
+            logger.warning(f"⚠️ 读取 etf_sectors.json 失败: {e}")
     else:
-        logger.warning("⚠️ etf_master.json 不存在，使用默认板块")
+        logger.warning("⚠️ etf_sectors.json 不存在，使用默认板块")
 
     # 读取历史数据用于综合分析
     history = load_history(days=7)
@@ -245,9 +245,6 @@ async def run():
 
     # 保存新闻列表
     await save_news(news.items, beijing_tz)
-
-    # 生成 ETF 板块映射（每天一次）
-    await fetch_etf_map()
 
     logger.info("=" * 50)
     logger.info("🎉 ETF风向标 - 运行完成")
@@ -316,56 +313,6 @@ async def enrich_sectors_with_etfs(result: dict):
             logger.info(f"  ✅ {sector_name}: {', '.join(e['name'] for e in etfs[:3])}")
 
     logger.info(f"✅ ETF匹配完成: {matched}/{len(sectors)} 个板块")
-
-
-async def fetch_etf_map(force: bool = False):
-    """生成 ETF Master 数据文件（每周一更新，或强制更新）"""
-    etf_file = DATA_DIR / "etf_master.json"
-    beijing_tz = timezone(timedelta(hours=8))
-    now = datetime.now(beijing_tz)
-
-    # 检查是否需要更新（每周一，或强制更新，或数据不完整）
-    if not force and etf_file.exists():
-        try:
-            data = json.loads(etf_file.read_text())
-            etf_count = len(data.get("etfs", {}))
-            # 数据不完整时强制重建
-            if etf_count < 50:
-                logger.info(f"ETF Master 数据不完整（{etf_count}个），需要重建")
-            else:
-                last_update = data.get("updated_at", "")[:10]
-                last_date = datetime.fromisoformat(last_update)
-                days_since_monday = now.weekday()
-                this_monday = (now - timedelta(days=days_since_monday)).date()
-                if last_date.date() >= this_monday:
-                    logger.info(f"ETF Master 本周已更新（{last_update}），跳过")
-                    return
-        except Exception:
-            pass
-
-    logger.info("生成 ETF Master 数据...")
-    try:
-        fund_service._etf_cache_time = 0
-        master = await fund_service.build_etf_master(min_amount_yi=1.0)
-
-        if not master.get("etfs"):
-            logger.warning("未获取到ETF数据")
-            return
-
-        # 检查数据完整性，太少则不保存（非交易时间成交额为0会导致筛选结果过少）
-        etf_count = len(master.get("etfs", {}))
-        if etf_count < 40:
-            logger.warning(f"⚠️ ETF数量过少({etf_count})，可能是非交易时间，跳过保存")
-            return
-
-        output = {
-            **master,
-            "updated_at": now.isoformat(),
-        }
-        etf_file.write_text(json.dumps(output, ensure_ascii=False, indent=2))
-        logger.info(f"ETF Master 已保存，共 {len(master['etfs'])} 个ETF")
-    except Exception as e:
-        logger.warning(f"生成 ETF Master 失败: {e}")
 
 
 if __name__ == "__main__":
