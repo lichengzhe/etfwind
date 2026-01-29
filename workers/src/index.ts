@@ -162,4 +162,24 @@ app.get('/news', async (c) => {
 // 健康检查
 app.get('/health', (c) => c.json({ status: 'ok' }))
 
+// 词云图片
+app.get('/api/wordcloud', async (c) => {
+  try {
+    const obj = await c.env.R2.get('wordcloud.png')
+    if (obj) {
+      return new Response(obj.body, {
+        headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=300' }
+      })
+    }
+  } catch (e) {
+    console.error('R2 wordcloud load failed:', e)
+  }
+  // 备用
+  const resp = await fetch(`${R2_URL}/wordcloud.png`)
+  if (!resp.ok) return c.notFound()
+  return new Response(resp.body, {
+    headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=300' }
+  })
+})
+
 export default app

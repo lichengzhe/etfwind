@@ -9,10 +9,16 @@ export interface Sector {
   etfs?: EtfData[]
 }
 
+// 热词（带权重）
+export interface HotWord {
+  word: string
+  weight: number
+}
+
 // 市场情绪
 export interface Opinions {
   sentiment?: string
-  hot_words?: string[]
+  hot_words?: HotWord[]
   media_bias?: string
 }
 

@@ -1,4 +1,4 @@
-import type { LatestData } from '../types'
+import type { LatestData, HotWord } from '../types'
 import { styles } from './styles'
 
 // 格式化时间（年月日 时分）
@@ -20,6 +20,24 @@ function dirClass(dir: string): string {
   if (dir === '利好') return 'up'
   if (dir === '利空') return 'down'
   return 'neutral'
+}
+
+// 渲染词云
+function renderWordCloud(hotWords: HotWord[] | string[] | undefined): string {
+  if (!hotWords?.length) return ''
+  // 兼容旧格式（字符串数组）和新格式（对象数组）
+  const normalized: HotWord[] = hotWords.map((hw, i) => {
+    if (typeof hw === 'string') {
+      // 旧格式：按位置分配权重（前面的词权重高）
+      return { word: hw, weight: Math.max(1, 5 - i) }
+    }
+    return hw
+  })
+  // 打乱顺序让词云更自然
+  const shuffled = normalized.sort(() => Math.random() - 0.5)
+  return `<div class="word-cloud">${shuffled.map(hw =>
+    `<span class="word w${hw.weight}">${hw.word}</span>`
+  ).join('')}</div>`
 }
 
 // 客户端 JS
@@ -185,7 +203,7 @@ export function renderHome(data: LatestData, etfMaster: Record<string, any>): st
         <div class="opinions">
           <strong>市场情绪</strong>
           <span class="sentiment">${result.opinions.sentiment || ''}</span>
-          ${result.opinions.hot_words?.length ? `<span class="hot-words">${result.opinions.hot_words.join(' ')}</span>` : ''}
+          <img src="/api/wordcloud" alt="词云" class="wordcloud-img" onerror="this.style.display='none'">
         </div>
         ` : ''}
       </div>

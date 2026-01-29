@@ -13,6 +13,7 @@ from src.worker_simple import (
     enrich_sectors_with_etfs, save_news,
 )
 from src.analyzers.realtime import analyze
+from src.services.wordcloud_service import generate_wordcloud
 
 
 def load_news_raw() -> tuple[list[NewsItem], dict]:
@@ -93,6 +94,19 @@ async def run():
 
     # 保存新闻列表
     await save_news(items, beijing_tz)
+
+    # 生成词云图片
+    hot_words = result.get("opinions", {}).get("hot_words", [])
+    if hot_words:
+        # 兼容旧格式（字符串数组）
+        if isinstance(hot_words[0], str):
+            hot_words = [{"word": w, "weight": 5 - i} for i, w in enumerate(hot_words[:5])]
+
+        img_data = generate_wordcloud(hot_words, width=400, height=200)
+        if img_data:
+            wordcloud_file = DATA_DIR / "wordcloud.png"
+            wordcloud_file.write_bytes(img_data)
+            logger.info(f"词云已保存: {wordcloud_file}")
 
     logger.info("分析完成")
 

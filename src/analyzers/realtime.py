@@ -43,7 +43,13 @@ ANALYSIS_PROMPT = """你是A股ETF投资分析师，分析新闻并输出投资�
   ],
   "opinions": {{
     "sentiment": "偏乐观",
-    "hot_words": ["避险", "看涨", "突破"],
+    "hot_words": [
+      {{"word": "避险", "weight": 5}},
+      {{"word": "看涨", "weight": 4}},
+      {{"word": "突破", "weight": 3}},
+      {{"word": "利好", "weight": 3}},
+      {{"word": "反弹", "weight": 2}}
+    ],
     "media_bias": "多数媒体看多黄金"
   }},
   "market_view": "🎯 市场状态一句话（20字内）",
@@ -65,7 +71,7 @@ ANALYSIS_PROMPT = """你是A股ETF投资分析师，分析新闻并输出投资�
 - facts: 3-5条纯客观事件（价格、涨跌、政策），不含情绪词和预测
 - opinions: 从新闻中提取的市场情绪信号
   - sentiment: 整体情绪（偏乐观/偏悲观/分歧/平淡）
-  - hot_words: 高频情绪词（避险、恐慌、狂热、看涨等）
+  - hot_words: 8-12个带权重的情绪词，weight 1-5（5最高频）
   - media_bias: 媒体倾向一句话总结
 - sectors: 最多6个，按热度排序
 - name: 必须从"可选板块"中选择

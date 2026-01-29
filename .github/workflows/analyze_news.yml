@@ -24,6 +24,9 @@ jobs:
 
       - run: pip install .
 
+      - name: Install Chinese fonts
+        run: sudo apt-get install -y fonts-noto-cjk
+
       - name: Download from R2
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -49,4 +52,5 @@ jobs:
         run: |
           aws s3 cp src/data/latest.json s3://invest-data/latest.json
           aws s3 cp src/data/news.json s3://invest-data/news.json
+          aws s3 cp src/data/wordcloud.png s3://invest-data/wordcloud.png || true
           aws s3 sync src/data/archive/ s3://invest-data/archive/
