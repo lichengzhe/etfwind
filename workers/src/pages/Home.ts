@@ -26,28 +26,59 @@ function dirClass(dir: string): string {
 const clientScript = `
 let isHoliday = false;
 
-async function loadGlobalIndices() {
-  try {
-    const resp = await fetch('/api/global-indices');
-    const data = await resp.json();
-    const el = document.getElementById('global-indices');
-    if (!el) return;
-    const order = ['usdcny', 'gold', 'btc', 'sh', 'nasdaq'];
-    const symbols = { usdcny: '💵', gold: '🥇', btc: '₿', sh: '📈', nasdaq: '📊' };
-    const html = order.map(k => {
-      const d = data[k];
-      if (!d || !d.kline?.length) return '';
-      const priceStr = d.price >= 10000 ? (d.price/1000).toFixed(1)+'k' : d.price >= 100 ? d.price.toFixed(0) : d.price.toFixed(2);
-      const kline = d.kline;
+async function loadIndicators() {
+  const el = document.getElementById('indicators-grid');
+  if (!el) return;
+
+  // 并发加载两个 API
+  const [indicesResp, cycleResp] = await Promise.all([
+    fetch('/api/global-indices').catch(() => null),
+    fetch('/api/commodity-cycle').catch(() => null)
+  ]);
+
+  const indicesData = indicesResp ? await indicesResp.json() : {};
+  const cycleData = cycleResp ? await cycleResp.json() : {};
+
+  // 全球指标配置
+  const indicesOrder = ['usdcny', 'gold', 'btc', 'sh', 'nasdaq'];
+  const indicesSymbols = { usdcny: '💵', gold: '🥇', btc: '₿', sh: '📈', nasdaq: '📊' };
+
+  // 商品周期配置
+  const cycleOrder = ['gold', 'silver', 'copper', 'oil', 'corn'];
+  const cycleNames = { gold: '黄金', silver: '白银', copper: '铜矿', oil: '石油', corn: '农产' };
+  const cycleIcons = { gold: '🥇', silver: '🥈', copper: '🔶', oil: '🛢️', corn: '🌽' };
+
+  // 渲染单个格子
+  function renderCell(name, icon, value, kline, isActive) {
+    let spark = '';
+    if (kline && kline.length > 1) {
       const min = Math.min(...kline), max = Math.max(...kline);
       const range = max - min || 1;
       const pts = kline.map((v,i) => (i*120/(kline.length-1))+','+(20-(v-min)/range*20)).join(' ');
       const color = kline[kline.length-1] >= kline[0] ? '#dc2626' : '#16a34a';
-      const sym = symbols[k] || '';
-      return '<span class="idx"><span class="idx-name"><b>'+d.name+'</b> '+sym+'</span><span class="idx-price">'+priceStr+'</span><svg class="idx-chart" viewBox="0 0 120 20" preserveAspectRatio="none"><polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="1.5"/></svg></span>';
-    }).join('');
-    el.innerHTML = html;
-  } catch (e) { console.warn('全球指标加载失败', e); }
+      spark = '<svg class="ind-chart" viewBox="0 0 120 20" preserveAspectRatio="none"><polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="1.5"/></svg>';
+    }
+    const activeClass = isActive ? ' active' : '';
+    return '<div class="ind-cell'+activeClass+'"><b>'+name+'</b> '+icon+' <small>'+value+'</small>'+spark+'</div>';
+  }
+
+  // 渲染全球指标（第一行）
+  const row1 = indicesOrder.map(k => {
+    const d = indicesData[k];
+    if (!d || !d.kline?.length) return renderCell('--', indicesSymbols[k] || '', '--', null, false);
+    const priceStr = d.price >= 10000 ? (d.price/1000).toFixed(1)+'k' : d.price >= 100 ? d.price.toFixed(0) : d.price.toFixed(2);
+    return renderCell(d.name, indicesSymbols[k] || '', priceStr, d.kline, false);
+  }).join('');
+
+  // 渲染商品周期（第二行）
+  const leader = cycleData.cycle?.leader || '';
+  const row2 = cycleOrder.map(k => {
+    const c = cycleData.commodities?.[k];
+    const chg = c ? (c.change_5d >= 0 ? '+' : '') + c.change_5d.toFixed(1) + '%' : '--';
+    return renderCell(cycleNames[k], cycleIcons[k], chg, c?.kline, k === leader);
+  }).join('');
+
+  el.innerHTML = row1 + row2;
 }
 
 async function checkHoliday() {
@@ -80,7 +111,7 @@ function updatePriceHeader() {
 async function loadSectorEtfs() {
   await checkHoliday();
   updatePriceHeader();
-  loadGlobalIndices();
+  loadIndicators();
   const tables = document.querySelectorAll('.etf-table');
   const sectors = Array.from(tables).map(t => t.dataset.sector);
   if (!sectors.length) return;
@@ -118,36 +149,7 @@ function renderEtfs(table, etfs) {
   }
 }
 
-async function loadCommodityCycle() {
-  try {
-    const resp = await fetch('/api/commodity-cycle');
-    const data = await resp.json();
-    const el = document.getElementById('commodity-cycle');
-    if (!el || !data.cycle) return;
-
-    const order = ['gold', 'silver', 'copper', 'oil', 'corn'];
-    const names = { gold: '黄金', silver: '白银', copper: '铜', oil: '石油', corn: '农产品' };
-    const icons = { gold: '🥇', silver: '🥈', copper: '🔶', oil: '🛢️', corn: '🌽' };
-
-    el.innerHTML = order.map(k => {
-      const c = data.commodities[k];
-      const isLeader = k === data.cycle.leader;
-      const chg = c ? (c.change_5d >= 0 ? '+' : '') + c.change_5d.toFixed(1) + '%' : '--';
-      let spark = '';
-      if (c && c.kline && c.kline.length > 1) {
-        const kline = c.kline;
-        const min = Math.min(...kline), max = Math.max(...kline);
-        const range = max - min || 1;
-        const pts = kline.map((v,i) => (i*120/(kline.length-1))+','+(20-(v-min)/range*20)).join(' ');
-        const color = kline[kline.length-1] >= kline[0] ? '#dc2626' : '#16a34a';
-        spark = '<svg class="cycle-chart" viewBox="0 0 120 20" preserveAspectRatio="none"><polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="1.5"/></svg>';
-      }
-      return '<span class="cycle-stage ' + (isLeader ? 'active' : '') + '">' + icons[k] + ' ' + names[k] + ' <small>' + chg + '</small>' + spark + '</span>';
-    }).join('');
-  } catch (e) { console.warn('周期数据加载失败', e); }
-}
-
-loadCommodityCycle();
+loadIndicators();
 loadSectorEtfs();
 `
 
@@ -266,9 +268,7 @@ export function renderHome(data: LatestData, etfMaster: Record<string, any>): st
       </span>
     </header>
 
-    <div id="global-indices" class="global-indices"></div>
-
-    <div id="commodity-cycle" class="cycle-card"></div>
+    <div id="indicators-grid" class="indicators-grid"></div>
 
     <div class="card">
       <div class="card-header">

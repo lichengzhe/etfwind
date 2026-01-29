@@ -16,11 +16,13 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
 .source-stats a { font-size: 11px; padding: 4px 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; text-decoration: none; color: #6b7280; transition: all 0.15s; flex-shrink: 0; }
 .source-stats a:hover { background: #f3f4f6; border-color: #d1d5db; color: #374151; }
 .card { background: #fff; border-radius: 10px; padding: 12px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-.global-indices { display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
-.idx { flex: 1; font-size: 13px; padding: 4px 10px; background: #f9fafb; border-radius: 6px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
-.idx-chart { width: 120px; height: 20px; }
-.idx-chart polyline { stroke-width: 2.5; }
-.idx svg { vertical-align: middle; }
+.indicators-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 10px; background: #fff; border-radius: 10px; padding: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.ind-cell { font-size: 13px; padding: 6px 10px; background: #f9fafb; border-radius: 6px; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+.ind-cell.active { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); }
+.ind-cell small { color: #6b7280; font-size: 11px; }
+.ind-cell.active small { color: #b45309; }
+.ind-chart { width: 120px; height: 20px; margin-left: auto; flex-shrink: 0; }
+.ind-chart polyline { stroke-width: 1.5; }
 .card h2 { font-size: 16px; margin-bottom: 6px; color: #1a1a1a; }
 .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
 .card-header h2 { margin-bottom: 0; }
@@ -71,13 +73,6 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
 .price-header.closed { color: #9ca3af; }
 .card p.summary { font-size: 14px; color: #374151; line-height: 1.8; }
 .sentiment { display: inline-block; padding: 2px 10px; background: #fef3c7; color: #b45309; border-radius: 4px; font-size: 12px; font-weight: 500; }
-.cycle-card { display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
-.cycle-stage { flex: 1; font-size: 13px; padding: 4px 10px; background: #f9fafb; border-radius: 6px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
-.cycle-stage.active { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); font-weight: 600; }
-.cycle-stage small { font-size: 11px; color: #6b7280; }
-.cycle-stage.active small { color: #b45309; }
-.cycle-stage .cycle-chart { width: 120px; height: 20px; margin-left: auto; }
-.cycle-stage .cycle-chart polyline { stroke-width: 2.5; }
 @media (max-width: 600px) {
   .container { padding: 12px; }
   header { flex-wrap: wrap; gap: 6px; }
@@ -85,12 +80,9 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
   .source-stats { flex-wrap: wrap; width: 100%; margin-top: 4px; }
   .source-stats a { font-size: 10px; padding: 3px 8px; }
   .github-link, .powered-by { display: none; }
-  .global-indices { flex-direction: column; gap: 4px; background: #fff; border-radius: 10px; padding: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-  .idx { width: 100%; background: transparent; padding: 2px 0; display: grid; grid-template-columns: 50px 32px 1fr; align-items: center; gap: 4px; }
-  .idx-name { font-size: 12px; }
-  .idx-price { font-size: 12px; text-align: right; }
-  .idx-chart { width: 100%; height: 18px; }
-  .idx-chart polyline { stroke-width: 2; }
+  .indicators-grid { grid-template-columns: repeat(2, 1fr); padding: 8px; gap: 6px; grid-auto-flow: column; grid-template-rows: repeat(5, auto); }
+  .ind-cell { font-size: 12px; padding: 4px 8px; }
+  .ind-chart { display: none; }
   .sectors-grid { grid-template-columns: 1fr; }
   .card h2 { font-size: 15px; }
   .card p { font-size: 12px; }
