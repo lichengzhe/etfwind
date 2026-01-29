@@ -150,21 +150,12 @@ def load_history(days: int = 7) -> list[dict]:
 def format_history_context(history: list[dict]) -> str:
     """格式化历史数据为 AI 上下文
 
-    目标：帮助 AI 理解趋势延续性和驱动因素
+    按时间顺序展示，让 AI 自己判断趋势延续性
     """
     if not history:
         return ""
 
-    lines = ["## 近期历史（判断趋势延续性）"]
-
-    # 统计板块连续出现次数
-    sector_streak = {}
-    for h in history:
-        for s in h["sectors"]:
-            name = s["name"]
-            if name not in sector_streak:
-                sector_streak[name] = 0
-            sector_streak[name] += 1
+    lines = ["## 近期历史（判断趋势是否延续）"]
 
     for h in history[:3]:  # 最多3天
         lines.append(f"\n**{h['date']}** {h['market_view']}")
@@ -172,12 +163,7 @@ def format_history_context(history: list[dict]) -> str:
             arrow = "↑" if s["direction"] == "利好" else "↓" if s["direction"] == "利空" else "-"
             stars = "★" * s["heat"]
             brief = s.get("brief", "")
-
-            # 标记连续热度
-            streak = sector_streak.get(s["name"], 1)
-            streak_mark = f"(连续{streak}天)" if streak > 1 else ""
-
-            lines.append(f"- {s['name']}{streak_mark} {arrow}{stars}: {brief}")
+            lines.append(f"- {s['name']} {arrow}{stars}: {brief}")
 
     return "\n".join(lines)
 
