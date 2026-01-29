@@ -348,9 +348,9 @@ async def fetch_etf_map(force: bool = False):
             logger.warning("未获取到ETF数据")
             return
 
-        # 检查数据完整性，太少则不保存
+        # 检查数据完整性，太少则不保存（非交易时间成交额为0会导致筛选结果过少）
         etf_count = len(master.get("etfs", {}))
-        if etf_count < 50:
+        if etf_count < 80:
             logger.warning(f"⚠️ ETF数量过少({etf_count})，可能是非交易时间，跳过保存")
             return
 
