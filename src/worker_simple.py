@@ -324,18 +324,22 @@ async def fetch_etf_map(force: bool = False):
     beijing_tz = timezone(timedelta(hours=8))
     now = datetime.now(beijing_tz)
 
-    # 检查是否需要更新（每周一，或强制更新）
+    # 检查是否需要更新（每周一，或强制更新，或数据不完整）
     if not force and etf_file.exists():
         try:
             data = json.loads(etf_file.read_text())
-            last_update = data.get("updated_at", "")[:10]
-            last_date = datetime.fromisoformat(last_update)
-            # 如果上次更新在本周一之后，跳过
-            days_since_monday = now.weekday()
-            this_monday = (now - timedelta(days=days_since_monday)).date()
-            if last_date.date() >= this_monday:
-                logger.info(f"ETF Master 本周已更新（{last_update}），跳过")
-                return
+            etf_count = len(data.get("etfs", {}))
+            # 数据不完整时强制重建
+            if etf_count < 50:
+                logger.info(f"ETF Master 数据不完整（{etf_count}个），需要重建")
+            else:
+                last_update = data.get("updated_at", "")[:10]
+                last_date = datetime.fromisoformat(last_update)
+                days_since_monday = now.weekday()
+                this_monday = (now - timedelta(days=days_since_monday)).date()
+                if last_date.date() >= this_monday:
+                    logger.info(f"ETF Master 本周已更新（{last_update}），跳过")
+                    return
         except Exception:
             pass
 
