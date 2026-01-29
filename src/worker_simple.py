@@ -319,10 +319,18 @@ async def enrich_sectors_with_etfs(result: dict):
 
 
 async def fetch_etf_map(force: bool = False):
-    """生成 ETF Master 数据文件（每周一更新，或强制更新）"""
+    """生成 ETF Master 数据文件（每周一交易时间更新，或强制更新）"""
     etf_file = DATA_DIR / "etf_master.json"
     beijing_tz = timezone(timedelta(hours=8))
     now = datetime.now(beijing_tz)
+
+    # 检查是否在交易时间（9:30-15:00）
+    hour = now.hour
+    minute = now.minute
+    is_trading_time = (hour == 9 and minute >= 30) or (10 <= hour < 15)
+    if not force and not is_trading_time:
+        logger.info(f"⏰ 非交易时间({now.strftime('%H:%M')})，跳过 ETF Master 生成")
+        return
 
     # 检查是否需要更新（每周一，或强制更新）
     if not force and etf_file.exists():
