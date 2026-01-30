@@ -198,14 +198,24 @@ function renderSectorCard(sector: any, etfMaster: Record<string, any>): string {
     </table>
   `
 
+  // 渲染信号标签
+  const signalHtml = sector.signal ? `<span class="sector-signal">${sector.signal}</span>` : ''
+
+  // 渲染检查清单
+  const checklistHtml = sector.checklist?.length
+    ? `<div class="sector-checklist">${sector.checklist.map((c: string) => `<span>${c}</span>`).join('')}</div>`
+    : ''
+
   return `
     <div class="sector-card ${dirClass(sector.direction)} heat-${sector.heat}">
       <div class="sector-header">
         <span class="sector-name">${sector.name}</span>
         <span class="sector-heat">${stars(sector.heat)}</span>
+        ${signalHtml}
         <span class="sector-dir ${dirClass(sector.direction)}">${sector.direction}</span>
       </div>
       <div class="sector-analysis">${sector.analysis}</div>
+      ${checklistHtml}
       ${etfTableHtml}
     </div>
   `
@@ -286,6 +296,13 @@ export function renderHome(data: LatestData, etfMaster: Record<string, any>): st
       </div>
       <p class="summary">${result.summary || result.narrative || ''}</p>
     </div>
+
+    ${result.risk_alerts?.length || result.opportunity_hints?.length ? `
+    <div class="alerts-row">
+      ${result.risk_alerts?.length ? `<div class="alert-box risk"><b>⚠️ 风险提示</b>${result.risk_alerts.map((r: string) => `<div>${r}</div>`).join('')}</div>` : ''}
+      ${result.opportunity_hints?.length ? `<div class="alert-box opportunity"><b>💡 机会提示</b>${result.opportunity_hints.map((o: string) => `<div>${o}</div>`).join('')}</div>` : ''}
+    </div>
+    ` : ''}
 
     <div class="sectors-grid">
       ${sectorsHtml}

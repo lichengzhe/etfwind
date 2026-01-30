@@ -73,6 +73,15 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
 .price-header.closed { color: #9ca3af; }
 .card p.summary { font-size: 14px; color: #374151; line-height: 1.8; }
 .sentiment { display: inline-block; padding: 2px 10px; background: #fef3c7; color: #b45309; border-radius: 4px; font-size: 12px; font-weight: 500; }
+.alerts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.alert-box { background: #fff; border-radius: 10px; padding: 10px 12px; font-size: 12px; line-height: 1.6; }
+.alert-box b { display: block; margin-bottom: 4px; font-size: 13px; }
+.alert-box.risk { border-left: 3px solid #ef4444; background: #fef2f2; }
+.alert-box.risk b { color: #dc2626; }
+.alert-box.opportunity { border-left: 3px solid #22c55e; background: #f0fdf4; }
+.alert-box.opportunity b { color: #16a34a; }
+.sector-signal { font-size: 11px; padding: 2px 6px; border-radius: 3px; background: #f3f4f6; }
+.sector-checklist { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; font-size: 11px; color: #6b7280; }
 @media (max-width: 600px) {
   .container { padding: 12px; }
   header { flex-wrap: wrap; gap: 6px; }
@@ -84,6 +93,8 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
   .ind-cell { font-size: 12px; padding: 4px 8px; }
   .ind-chart { width: 60px; height: 16px; }
   .sectors-grid { grid-template-columns: 1fr; }
+  .alerts-row { grid-template-columns: 1fr; }
+  .alert-box { font-size: 11px; padding: 8px 10px; }
   .card h2 { font-size: 15px; }
   .card p { font-size: 12px; }
   .sector-name { font-size: 15px; }

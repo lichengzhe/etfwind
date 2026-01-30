@@ -23,9 +23,26 @@ _cache = {
 # 定时任务控制
 _scheduler_task = None
 
-ANALYSIS_PROMPT = """你是A股ETF投资分析师，分析新闻并输出投资参考。
+ANALYSIS_PROMPT = """你是A股ETF投资分析师，专注板块轮动和ETF配置建议。
 
-## 新闻（共{count}条）
+## 核心交易理念（必须遵守）
+
+### 1. 板块轮动规律
+- 政策驱动 > 业绩驱动 > 资金驱动
+- 主线板块持续性强，跟风板块一日游
+- 板块见顶信号：龙头滞涨、补涨股活跃
+
+### 2. ETF配置原则
+- 趋势确立后介入，不抄底不追高
+- 板块热度≥4且方向利好时可关注
+- 连续利空或热度骤降时回避
+
+### 3. 风险识别要点
+- 🚨 政策利空（监管、限制、处罚）
+- 🚨 行业景气下行（业绩预亏、产能过剩）
+- 🚨 资金出逃（北向大幅流出、主力减仓）
+
+## 新闻数据（共{count}条）
 {news_list}
 
 {history_context}
@@ -39,32 +56,38 @@ ANALYSIS_PROMPT = """你是A股ETF投资分析师，分析新闻并输出投资�
 ## 输出JSON
 ```json
 {{
-  "market_view": "🎯 市场状态一句话（20字内）",
-  "summary": "📊 市场综述（200-250字）：融合关键事实与趋势分析，用📈📉💰🔥等emoji标注重点数据和转折。行文流畅，一气呵成。",
-  "sentiment": "偏乐观",
+  "market_view": "🎯 一句话核心结论（25字内，直接说今天该关注什么）",
+  "summary": "市场综述（200字）：融合关键事实与趋势，用emoji标注重点",
+  "sentiment": "偏乐观/偏悲观/分歧/平淡",
   "sectors": [
     {{
-      "name": "芯片",
+      "name": "板块名（从可选板块选）",
       "heat": 5,
-      "direction": "利好",
-      "analysis": "板块分析（80字）"
+      "direction": "利好/利空/中性",
+      "analysis": "板块分析（80字）：包含驱动因素+风险提示",
+      "signal": "🟢买入/🟡观望/🔴回避",
+      "checklist": ["✅ 政策支持", "✅ 业绩向好", "⚠️ 估值偏高"]
     }}
   ],
+  "risk_alerts": ["风险1：具体描述", "风险2：具体描述"],
+  "opportunity_hints": ["机会1：具体描述", "机会2：具体描述"],
   "commodity_cycle": {{
     "stage": 2,
     "stage_name": "白银跟涨期",
-    "analysis": "周期分析（30字）",
-    "signal": "关注信号（15字）"
+    "leader": "gold/silver/copper/oil/corn",
+    "analysis": "周期分析（30字）"
   }}
 }}
 ```
 
-## 要求
-- market_view: 一句话概括今日市场主线
-- summary: 综合分析，包含3-5个关键事实+趋势判断，用emoji突出重点
-- sentiment: 整体情绪（偏乐观/偏悲观/分歧/平淡）
-- sectors: 最多6个，按热度排序，name必须从"可选板块"中选择
-- commodity_cycle: 基于新闻判断当前商品周期阶段(1-5)，stage_name从"黄金领涨期/白银跟涨期/铜价上涨期/油价上涨期/农产品补涨期"选择
+## 输出要求
+1. market_view: 一句话说清今日主线，有操作指引性
+2. sectors: 最多6个板块，按热度排序
+   - signal: 基于热度+方向+风险综合判断
+   - checklist: 3项检查，用✅⚠️❌标记
+3. risk_alerts: 今日需警惕的2-3个风险点
+4. opportunity_hints: 今日值得关注的2-3个机会
+5. commodity_cycle.leader: 当前领涨商品（用于前端高亮）
 """
 
 
