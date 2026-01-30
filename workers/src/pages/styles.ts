@@ -10,9 +10,8 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
 .news-total:hover { text-decoration: underline; }
 .github-link { display: inline-flex; align-items: center; color: #6b7280; margin-left: auto; }
 .github-link:hover { color: #374151; }
-.brand-box { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-left: 8px; }
-.brand-box img:first-child { border-radius: 4px; }
-.visit-counter { height: 18px; }
+.powered-by { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #D97706; text-decoration: none; }
+.powered-by:hover { color: #B45309; }
 .source-stats { display: flex; flex-wrap: nowrap; gap: 4px; flex-shrink: 1; overflow: hidden; }
 .source-stats a { font-size: 11px; padding: 4px 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; text-decoration: none; color: #6b7280; transition: all 0.15s; flex-shrink: 0; }
 .source-stats a:hover { background: #f3f4f6; border-color: #d1d5db; color: #374151; }
@@ -89,7 +88,7 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
   header h1 { font-size: 18px; }
   .source-stats { flex-wrap: wrap; width: 100%; margin-top: 4px; }
   .source-stats a { font-size: 10px; padding: 3px 8px; }
-  .github-link, .brand-box { display: none; }
+  .github-link, .powered-by { display: none; }
   .indicators-grid { grid-template-columns: repeat(2, 1fr); padding: 8px; gap: 6px; grid-auto-flow: column; grid-template-rows: repeat(5, auto); }
   .ind-cell { font-size: 12px; padding: 4px 8px; }
   .ind-chart { width: 60px; height: 16px; }
