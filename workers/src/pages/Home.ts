@@ -140,7 +140,7 @@ function renderEtfs(table, etfs) {
     if (abs >= 1) return dir + '-1';
     return dir;
   };
-  const fmt = v => Math.abs(v).toFixed(1) + '%';
+  const fmt = v => (v < 0 ? '-' : '') + Math.abs(v).toFixed(1) + '%';
   const fmtPrice = v => v == null ? '--' : v.toFixed(3);
   for (const f of etfs) {
     const row = table.querySelector(\`tr[data-code="\${f.code}"]\`);
@@ -183,8 +183,8 @@ function renderSectorCard(sector: any, etfMaster: Record<string, any>, trend?: {
         <td class="price">--</td>
         <td class="amount">--</td>
         <td class="change">--</td>
-        <td class="${chgClass(f.change_5d || 0)}">${Math.abs(f.change_5d || 0).toFixed(1)}%</td>
-        <td class="${chgClass(f.change_20d || 0)}">${Math.abs(f.change_20d || 0).toFixed(1)}%</td>
+        <td class="${chgClass(f.change_5d || 0)}">${(f.change_5d || 0) < 0 ? '-' : ''}${Math.abs(f.change_5d || 0).toFixed(1)}%</td>
+        <td class="${chgClass(f.change_20d || 0)}">${(f.change_20d || 0) < 0 ? '-' : ''}${Math.abs(f.change_20d || 0).toFixed(1)}%</td>
         <td>${f.kline?.length ? `<svg class="sparkline" viewBox="0 0 100 16" preserveAspectRatio="none"><polyline points="${f.kline.map((v: number, i: number) => `${i * 100 / (f.kline.length - 1)},${16 - (v - Math.min(...f.kline)) / (Math.max(...f.kline) - Math.min(...f.kline) || 1) * 16}`).join(' ')}" fill="none" stroke="${f.kline[f.kline.length-1] >= f.kline[0] ? '#dc2626' : '#16a34a'}" stroke-width="1.2"/></svg>` : '-'}</td>
       </tr>
     `).join('')
