@@ -204,8 +204,8 @@ function renderSectorCard(sector: any, etfMaster: Record<string, any>, trend?: {
   // 渲染7日趋势箭头
   const trendHtml = trend?.arrows ? `<span class="sector-trend">${trend.arrows}</span>` : ''
 
-  // 方向标签（含趋势描述）
-  const dirText = trend?.desc ? `${sector.direction}·${trend.desc}` : sector.direction
+  // 方向标签（有趋势描述时只显示描述）
+  const dirText = trend?.desc || sector.direction
 
   // 渲染检查清单
   const checklistHtml = sector.checklist?.length
