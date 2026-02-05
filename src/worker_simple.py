@@ -405,8 +405,7 @@ async def ai_map_to_master_sectors(
     ai_sectors: list[str], master_sectors: list[str]
 ) -> dict[str, list[str]]:
     """AI 将分析出的板块映射到 master 中的标准板块（可一对多）"""
-    import httpx
-    from src.config import settings
+    from src.services.ai_client import AIClient, AIRequest, parse_json_with_repair
 
     prompt = f"""将左边的板块名映射到右边最相关的标准板块。
 
@@ -431,27 +430,13 @@ async def ai_map_to_master_sectors(
 - 无法映射则返回空数组[]"""
 
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                f"{settings.claude_base_url.rstrip('/')}/v1/messages",
-                headers={
-                    "Content-Type": "application/json",
-                    "x-api-key": settings.claude_api_key,
-                    "anthropic-version": "2023-06-01",
-                },
-                json={
-                    "model": settings.claude_model,
-                    "max_tokens": 1024,
-                    "messages": [{"role": "user", "content": prompt}]
-                },
-            )
-            resp.raise_for_status()
-            text = resp.json()["content"][0]["text"].strip()
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0]
-            elif "```" in text:
-                text = text.split("```")[1].split("```")[0]
-            return json.loads(text)
+        client = AIClient()
+        text = await client.send(AIRequest(
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1024,
+            timeout=60,
+        ))
+        return parse_json_with_repair(text)
     except Exception as e:
         logger.warning(f"AI板块映射失败: {e}")
         return {}

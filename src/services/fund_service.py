@@ -8,7 +8,7 @@ import httpx
 from loguru import logger
 from typing import Optional
 
-from src.config import settings
+from src.services.ai_client import AIClient, AIRequest, parse_json_with_repair
 
 # 排除的 ETF 类型（宽基指数、债券、货币、跨境等）
 EXCLUDE_KEYWORDS = [
@@ -176,30 +176,16 @@ class FundService:
 
 {etf_list}
 
-输出JSON格式：{{"代码": "描述", ...}}"""
+        输出JSON格式：{{"代码": "描述", ...}}"""
 
         try:
-            resp = await client.post(
-                f"{settings.claude_base_url.rstrip('/')}/v1/messages",
-                headers={
-                    "Content-Type": "application/json",
-                    "x-api-key": settings.claude_api_key,
-                    "anthropic-version": "2023-06-01",
-                },
-                json={
-                    "model": settings.claude_model,
-                    "max_tokens": 2048,
-                    "messages": [{"role": "user", "content": prompt}]
-                },
+            ai_client = AIClient()
+            text = await ai_client.send(AIRequest(
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=2048,
                 timeout=60,
-            )
-            resp.raise_for_status()
-            text = resp.json()["content"][0]["text"].strip()
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0]
-            elif "```" in text:
-                text = text.split("```")[1].split("```")[0]
-            return json.loads(text)
+            ))
+            return parse_json_with_repair(text)
         except Exception as e:
             logger.warning(f"AI精炼描述失败: {e}")
             return {}
@@ -250,28 +236,13 @@ class FundService:
 注意：板块列表只包含有效的行业板块，不包含"排除"。"""
 
         try:
-            resp = await client.post(
-                f"{settings.claude_base_url.rstrip('/')}/v1/messages",
-                headers={
-                    "Content-Type": "application/json",
-                    "x-api-key": settings.claude_api_key,
-                    "anthropic-version": "2023-06-01",
-                },
-                json={
-                    "model": settings.claude_model,
-                    "max_tokens": 4096,
-                    "messages": [{"role": "user", "content": prompt}]
-                },
+            ai_client = AIClient()
+            text = await ai_client.send(AIRequest(
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=4096,
                 timeout=120,
-            )
-            resp.raise_for_status()
-            text = resp.json()["content"][0]["text"].strip()
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0]
-            elif "```" in text:
-                text = text.split("```")[1].split("```")[0]
-            result = json.loads(text)
-            return result
+            ))
+            return parse_json_with_repair(text)
         except Exception as e:
             logger.warning(f"AI分类ETF失败: {e}")
             return {}

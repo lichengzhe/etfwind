@@ -12,6 +12,59 @@ const app = new Hono<{ Bindings: Env }>()
 // CORS
 app.use('*', cors())
 
+// Basic in-memory rate limiter (best-effort per worker instance)
+const RATE_LIMIT_WINDOW_MS = 60_000
+const RATE_LIMIT_MAX = 120
+const rateState = new Map<string, { count: number; reset: number }>()
+
+function getClientId(c: any): string {
+  return (
+    c.req.header('cf-connecting-ip') ||
+    c.req.header('x-forwarded-for') ||
+    'unknown'
+  )
+}
+
+function checkRateLimit(c: any): Response | null {
+  const now = Date.now()
+  const key = getClientId(c)
+  const state = rateState.get(key)
+  if (!state || now > state.reset) {
+    rateState.set(key, { count: 1, reset: now + RATE_LIMIT_WINDOW_MS })
+    return null
+  }
+  state.count += 1
+  if (state.count > RATE_LIMIT_MAX) {
+    return c.json({ error: 'rate_limited' }, 429)
+  }
+  return null
+}
+
+async function withCache(
+  c: any,
+  key: string,
+  ttlSeconds: number,
+  fetcher: () => Promise<Response>
+): Promise<Response> {
+  const cache = caches.default
+  const cacheKey = new Request(key)
+  const cached = await cache.match(cacheKey)
+  if (cached) return cached
+
+  const resp = await fetcher()
+  const out = new Response(resp.body, resp)
+  out.headers.set('Cache-Control', `public, max-age=${ttlSeconds}`)
+  c.executionCtx.waitUntil(cache.put(cacheKey, out.clone()))
+  return out
+}
+
+// Apply rate limiting to API routes only
+app.use('/api/*', async (c, next) => {
+  const limited = checkRateLimit(c)
+  if (limited) return limited
+  await next()
+})
+
 // R2 公开 URL（备用）
 const R2_URL = 'https://pub-bf3ac083583c4798b8f0091067ae106d.r2.dev'
 
@@ -74,80 +127,81 @@ app.get('/', async (c) => {
     loadEtfMaster(c.env.R2),
     loadNews(c.env.R2),
   ])
-  // 从 news.json 统计实际的 source 分布
-  const sourceStats: Record<string, number> = {}
-  for (const item of news) {
-    sourceStats[item.source] = (sourceStats[item.source] || 0) + 1
-  }
-  // 覆盖 latest.json 中的 source_stats
-  data.source_stats = sourceStats
-  data.news_count = news.length
   return c.html(renderHome(data, etfMaster))
 })
 
 // API: 分析数据
 app.get('/api/data', async (c) => {
-  const data = await loadData(c.env.R2)
-  return c.json(data)
+  return await withCache(c, c.req.url, 60, async () => {
+    const data = await loadData(c.env.R2)
+    return c.json(data)
+  })
 })
 
 // API: ETF 实时行情
 app.get('/api/funds', async (c) => {
-  const codes = c.req.query('codes')?.split(',').filter(Boolean) || []
-  const funds = await fetchFunds(codes)
-  return c.json(funds)
+  return await withCache(c, c.req.url, 30, async () => {
+    const codes = c.req.query('codes')?.split(',').filter(Boolean) || []
+    const funds = await fetchFunds(codes)
+    return c.json(funds)
+  })
 })
 
 // API: 批量板块 ETF
 app.get('/api/batch-sector-etfs', async (c) => {
-  const sectors = c.req.query('sectors')?.split(',').filter(Boolean) || []
-  const etfMaster = await loadEtfMaster(c.env.R2)
+  return await withCache(c, c.req.url, 60, async () => {
+    const sectors = c.req.query('sectors')?.split(',').filter(Boolean) || []
+    const etfMaster = await loadEtfMaster(c.env.R2)
 
-  const result: Record<string, any[]> = {}
-  const allCodes: string[] = []
+    const result: Record<string, any[]> = {}
+    const allCodes: string[] = []
 
-  // 找出每个板块的 ETF（按成交额排序）
-  for (const sector of sectors) {
-    const lookupSector = SECTOR_ALIAS[sector] || sector
-    const etfs = Object.values(etfMaster)
-      .filter((e: any) => e.sector === lookupSector)
-      .sort((a: any, b: any) => (b.amount_yi || 0) - (a.amount_yi || 0))
-      .slice(0, 3)
-    result[sector] = etfs
-    allCodes.push(...etfs.map((e: any) => e.code))
-  }
+    // 找出每个板块的 ETF（按成交额排序）
+    for (const sector of sectors) {
+      const lookupSector = SECTOR_ALIAS[sector] || sector
+      const etfs = Object.values(etfMaster)
+        .filter((e: any) => e.sector === lookupSector)
+        .sort((a: any, b: any) => (b.amount_yi || 0) - (a.amount_yi || 0))
+        .slice(0, 3)
+      result[sector] = etfs
+      allCodes.push(...etfs.map((e: any) => e.code))
+    }
 
-  // 批量获取实时行情
-  const realtime = await fetchFunds([...new Set(allCodes)])
+    // 批量获取实时行情
+    const realtime = await fetchFunds([...new Set(allCodes)])
 
-  // 合并数据：只用实时数据覆盖价格、今日涨跌、成交额，保留 etfMaster 中的 5日/20日/K线
-  for (const sector of sectors) {
-    result[sector] = result[sector].map((e: any) => {
-      const rt = realtime[e.code]
-      if (!rt) return e
-      return {
-        ...e,
-        price: rt.price,
-        change_pct: rt.change_pct,
-        amount_yi: rt.amount_yi,
-      }
-    })
-    // 按成交额排序
-    result[sector].sort((a: any, b: any) => (b.amount_yi || 0) - (a.amount_yi || 0))
-  }
+    // 合并数据：只用实时数据覆盖价格、今日涨跌、成交额，保留 etfMaster 中的 5日/20日/K线
+    for (const sector of sectors) {
+      result[sector] = result[sector].map((e: any) => {
+        const rt = realtime[e.code]
+        if (!rt) return e
+        return {
+          ...e,
+          price: rt.price,
+          change_pct: rt.change_pct,
+          amount_yi: rt.amount_yi,
+        }
+      })
+      // 按成交额排序
+      result[sector].sort((a: any, b: any) => (b.amount_yi || 0) - (a.amount_yi || 0))
+    }
 
-  return c.json({ data: result })
+    return c.json({ data: result })
+  })
 })
 
 // API: ETF Master
 app.get('/api/etf-master', async (c) => {
-  const etfMaster = await loadEtfMaster(c.env.R2)
-  return c.json(etfMaster)
+  return await withCache(c, c.req.url, 300, async () => {
+    const etfMaster = await loadEtfMaster(c.env.R2)
+    return c.json(etfMaster)
+  })
 })
 
 // API: 全球指标（含180天K线）
 app.get('/api/global-indices', async (c) => {
-  const indices: Record<string, any> = {}
+  return await withCache(c, c.req.url, 300, async () => {
+    const indices: Record<string, any> = {}
 
   // 东方财富K线：黄金、上证、美元
   const emCodes: Record<string, { secid: string; name: string }> = {
@@ -199,12 +253,14 @@ app.get('/api/global-indices', async (c) => {
     }
   } catch (e) { console.error('Yahoo Finance API错误:', e) }
 
-  return c.json(indices)
+    return c.json(indices)
+  })
 })
 
 // API: 商品周期轮动（黄金→白银→铜→石油→农产品）
 app.get('/api/commodity-cycle', async (c) => {
-  const commodities: Record<string, any> = {}
+  return await withCache(c, c.req.url, 300, async () => {
+    const commodities: Record<string, any> = {}
 
   // Yahoo Finance 获取商品数据
   const yahooSymbols: Record<string, { symbol: string; name: string }> = {
@@ -257,17 +313,18 @@ app.get('/api/commodity-cycle', async (c) => {
     .sort((a, b) => b.score - a.score)
 
   const leader = momentum[0]?.key || 'gold'
-  const stage = order.indexOf(leader) + 1
+    const stage = order.indexOf(leader) + 1
 
-  return c.json({
-    commodities,
-    cycle: {
-      stage,
-      leader,
-      stage_name: stageNames[stage - 1] || '未知',
-      next: order[(stage) % 5],
-      momentum: momentum.map(m => ({ ...m, name: commodities[m.key]?.name }))
-    }
+    return c.json({
+      commodities,
+      cycle: {
+        stage,
+        leader,
+        stage_name: stageNames[stage - 1] || '未知',
+        next: order[(stage) % 5],
+        momentum: momentum.map(m => ({ ...m, name: commodities[m.key]?.name }))
+      }
+    })
   })
 })
 
@@ -323,8 +380,9 @@ Sitemap: https://etf.aurora-bots.com/sitemap.xml`
 
 // API: 每日海报 SVG
 app.get('/api/poster', async (c) => {
-  const data = await loadData(c.env.R2)
-  const { result, updated_at } = data
+  return await withCache(c, c.req.url, 300, async () => {
+    const data = await loadData(c.env.R2)
+    const { result, updated_at } = data
 
   // XML 转义 + 移除 emoji
   const esc = (s: string) => s
@@ -384,7 +442,8 @@ ${sectorsSvg}
 <text x="300" y="780" font-size="12" fill="#ffffff80" text-anchor="middle">数据来源：财联社、东方财富、Bloomberg</text>
 </svg>`
 
-  return c.text(svg, 200, { 'Content-Type': 'image/svg+xml; charset=utf-8' })
+    return c.text(svg, 200, { 'Content-Type': 'image/svg+xml; charset=utf-8' })
+  })
 })
 
 // 健康检查

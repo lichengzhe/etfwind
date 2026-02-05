@@ -1,15 +1,13 @@
 """简化版投资分析 - 无数据库，实时分析"""
 
 import asyncio
-import json
 from datetime import datetime, timezone, timedelta
 from collections import Counter
 from loguru import logger
-import httpx
-
 from src.config import settings
 from src.models import NewsItem
 from src.collectors import NewsAggregator
+from src.services.ai_client import AIClient, AIRequest, parse_json_with_repair
 
 
 # 全局缓存
@@ -112,10 +110,6 @@ async def analyze(items: list[NewsItem], sector_list: list[str] = None, history_
         sector_list: 可选板块列表（从 etf_master.json 读取）
         history_context: 历史分析上下文（用于趋势对比）
     """
-    base_url = settings.claude_base_url.rstrip("/")
-    api_key = settings.claude_api_key
-    model = settings.claude_model
-
     news_list = "\n".join([
         f"{i+1}. [{item.source}] {item.title}"
         for i, item in enumerate(items)
@@ -148,50 +142,14 @@ async def analyze(items: list[NewsItem], sector_list: list[str] = None, history_
     )
 
     try:
-        async with httpx.AsyncClient(timeout=120) as client:
-            resp = await client.post(
-                f"{base_url}/v1/messages",
-                headers={
-                    "Content-Type": "application/json",
-                    "x-api-key": api_key,
-                    "anthropic-version": "2023-06-01",
-                },
-                json={
-                    "model": model,
-                    "max_tokens": 4096,
-                    "messages": [{"role": "user", "content": prompt}]
-                }
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            text = data["content"][0]["text"].strip()
-
-        # 提取 JSON
-        if "```json" in text:
-            text = text.split("```json")[1].split("```")[0]
-        elif "```" in text:
-            text = text.split("```")[1].split("```")[0]
-
-        # 尝试解析，失败则修复常见问题
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError as e:
-            import re
-            logger.warning(f"JSON 解析失败，尝试修复: {e}")
-            # 修复：中文引号替换
-            text = text.replace("“", '"').replace("”", '"')
-            # 修复：移除尾部逗号
-            text = re.sub(r',(\s*[}\]])', r'\1', text)
-            # 修复：字符串内的换行（更彻底的方法）
-            def fix_newlines(m):
-                return m.group(0).replace('\n', ' ').replace('\r', '')
-            text = re.sub(r'"[^"]*"', fix_newlines, text)
-            try:
-                return json.loads(text)
-            except json.JSONDecodeError as e2:
-                logger.error(f"修复后仍失败: {e2}")
-                logger.error(f"问题文本片段: {text[max(0,e2.pos-50):e2.pos+50]}")
-                raise
+        client = AIClient()
+        text = await client.send(AIRequest(
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=4096,
+            timeout=120,
+            model=settings.claude_model,
+        ))
+        return parse_json_with_repair(text, fix_newlines=True)
     except Exception as e:
         logger.error(f"分析失败: {e}")
         return {}
