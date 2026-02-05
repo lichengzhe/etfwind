@@ -216,25 +216,6 @@ function renderSectorCard(sector: any, etfMaster: Record<string, any>, trend?: {
     ? `<span class="sector-confidence">置信 ${confidence}</span>`
     : ''
 
-  // 证据卡片
-  const evidence = Array.isArray(sector.evidence) ? sector.evidence.slice(0, 3) : []
-  const evidenceHtml = evidence.length
-    ? `<div class="sector-evidence">
-        ${evidence.map((e: any) => {
-          const title = e.title || ''
-          const source = e.source || ''
-          const reason = e.reason ? `<span class="evidence-reason">— ${e.reason}</span>` : ''
-          const link = e.url ? `<a class="evidence-link" href="${e.url}" target="_blank" rel="noopener noreferrer">${title}</a>` : `<span class="evidence-text">${title}</span>`
-          return `
-          <div class="evidence-item">
-            <span class="evidence-source">[${source}]</span>
-            ${link}
-            ${reason}
-          </div>`
-        }).join('')}
-      </div>`
-    : ''
-
   return `
     <div class="sector-card ${dirClass(sector.direction)} heat-${sector.heat}">
       <div class="sector-header">
@@ -248,7 +229,6 @@ function renderSectorCard(sector: any, etfMaster: Record<string, any>, trend?: {
         </span>
       </div>
       <div class="sector-analysis">${sector.analysis}</div>
-      ${evidenceHtml}
       ${etfTableHtml}
     </div>
   `

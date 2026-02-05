@@ -7,15 +7,7 @@ export interface Sector {
   analysis: string
   catalyst?: string
   news?: string[]
-  evidence?: SectorEvidence[]
   etfs?: EtfData[]
-}
-
-export interface SectorEvidence {
-  title: string
-  source: string
-  url?: string
-  reason?: string
 }
 
 // 市场情绪

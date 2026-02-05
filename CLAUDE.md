@@ -114,10 +114,7 @@ Cloudflare R2（数据存储）：
         "direction": "利好/利空/中性",
         "confidence": 80,
         "analysis": "板块深度分析（80-100字）",
-        "signal": "🟢买入/🟡观望/🔴回避",
-        "evidence": [
-          {"title": "新闻标题", "source": "来源", "reason": "与板块相关的因果/驱动"}
-        ]
+        "signal": "🟢买入/🟡观望/🔴回避"
       }
     ],
     "risk_alerts": ["风险1：...", "风险2：..."],

@@ -95,13 +95,6 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
 .alert-box.opportunity b { color: #16a34a; }
 .sector-signal { font-size: 11px; padding: 2px 6px; border-radius: 3px; background: #f3f4f6; }
 .sector-confidence { font-size: 11px; padding: 2px 6px; border-radius: 3px; background: #eef2ff; color: #4f46e5; }
-.sector-evidence { margin: 6px 0; padding: 6px 8px; background: #f8fafc; border-radius: 6px; border: 1px dashed #e2e8f0; font-size: 11px; color: #475569; }
-.sector-evidence .evidence-item { margin-bottom: 3px; }
-.sector-evidence .evidence-item:last-child { margin-bottom: 0; }
-.sector-evidence .evidence-source { color: #64748b; margin-right: 4px; }
-.sector-evidence .evidence-link { color: #2563eb; text-decoration: none; }
-.sector-evidence .evidence-link:hover { text-decoration: underline; }
-.sector-evidence .evidence-reason { color: #6b7280; margin-left: 4px; }
 @media (max-width: 600px) {
   .container { padding: 12px; }
   header { flex-wrap: wrap; gap: 6px; }
