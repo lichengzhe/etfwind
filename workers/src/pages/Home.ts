@@ -11,9 +11,12 @@ function formatTime(dateStr: string): string {
   return '--'
 }
 
-// 生成星星
-function stars(n: number): string {
-  return '★'.repeat(n)
+// 生成星星（heat 1-10 转换为 5 星制，支持半星）
+function stars(heat: number): string {
+  const rating = Math.min(heat, 10) / 2  // 转换为 0-5
+  const full = Math.floor(rating)
+  const half = rating % 1 >= 0.5 ? 1 : 0
+  return '★'.repeat(full) + (half ? '☆' : '')
 }
 
 // 方向样式
