@@ -38,6 +38,14 @@ def _days_between(now: datetime, date_str: str) -> int | None:
     return (now.replace(tzinfo=None) - d).days
 
 
+def _pick_trading_index(dates: list[str], entry_date: str) -> int | None:
+    """选择不早于 entry_date 的第一个交易日索引"""
+    for i, d in enumerate(dates):
+        if d >= entry_date:
+            return i
+    return None
+
+
 def load_review_data() -> dict:
     if REVIEW_FILE.exists():
         try:
@@ -56,17 +64,7 @@ async def update_review(result: dict, beijing_tz) -> dict:
     data = load_review_data()
     signals: list[dict] = data.get("signals", [])
 
-    # 更新历史信号的当前价格
-    codes = list({s.get("etf_code") for s in signals if s.get("etf_code")})
-    latest_prices = {}
-    if codes:
-        latest_prices = await fund_service.batch_get_funds(codes)
-
     now = datetime.now(beijing_tz)
-    for s in signals:
-        code = s.get("etf_code")
-        if code in latest_prices:
-            s["latest_price"] = latest_prices[code].get("price")
 
     # 添加今日信号（只记录买入信号）
     today = now.strftime("%Y-%m-%d")
@@ -99,20 +97,51 @@ async def update_review(result: dict, beijing_tz) -> dict:
     data["updated_at"] = now.isoformat()
     save_review_data(data)
 
-    # 计算复盘指标（1/3/7/20日）
+    # 计算复盘指标（1/3/7/20 交易日）
     horizons = [1, 3, 7, 20]
-    summary = {"as_of": now.isoformat(), "horizons": {}}
+    summary = {
+        "as_of": now.isoformat(),
+        "horizons": {},
+        "benchmark": {"name": "沪深300", "secid": "1.000300"},
+    }
+
+    benchmark_kline = await fund_service.get_kline_date_map(secid="1.000300")
+    bench_dates = [d for d, _ in benchmark_kline]
+    bench_closes = [c for _, c in benchmark_kline]
+
+    code_to_kline: dict[str, list[tuple[str, float]]] = {}
+    for s in signals:
+        code = s.get("etf_code")
+        if code and code not in code_to_kline:
+            code_to_kline[code] = await fund_service.get_kline_date_map(code=code)
+
     for h in horizons:
         returns = []
+        excess = []
         for s in signals:
-            days = _days_between(now, s.get("date", ""))
-            if days is None or days < h:
+            entry_date = s.get("date", "")
+            code = s.get("etf_code")
+            kline = code_to_kline.get(code, [])
+            if not kline:
                 continue
-            entry = s.get("entry_price")
-            latest = s.get("latest_price")
-            if not entry or not latest:
+            dates = [d for d, _ in kline]
+            closes = [c for _, c in kline]
+            idx = _pick_trading_index(dates, entry_date)
+            if idx is None:
                 continue
-            returns.append((latest - entry) / entry * 100)
+            exit_idx = idx + h
+            if exit_idx >= len(closes):
+                continue
+            entry = closes[idx]
+            exit_price = closes[exit_idx]
+            ret = (exit_price - entry) / entry * 100
+            returns.append(ret)
+
+            if bench_dates and bench_closes:
+                bidx = _pick_trading_index(bench_dates, entry_date)
+                if bidx is not None and bidx + h < len(bench_closes):
+                    bret = (bench_closes[bidx + h] - bench_closes[bidx]) / bench_closes[bidx] * 100
+                    excess.append(ret - bret)
         if returns:
             win_rate = sum(1 for r in returns if r > 0) / len(returns) * 100
             avg_ret = sum(returns) / len(returns)
@@ -120,9 +149,10 @@ async def update_review(result: dict, beijing_tz) -> dict:
                 "count": len(returns),
                 "win_rate": round(win_rate, 1),
                 "avg_return": round(avg_ret, 2),
+                "avg_excess": round(sum(excess) / len(excess), 2) if excess else 0,
             }
         else:
-            summary["horizons"][str(h)] = {"count": 0, "win_rate": 0, "avg_return": 0}
+            summary["horizons"][str(h)] = {"count": 0, "win_rate": 0, "avg_return": 0, "avg_excess": 0}
 
     return summary
 

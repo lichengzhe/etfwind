@@ -44,7 +44,7 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
 .sector-dir.neutral { background: #f3f4f6; color: #6b7280; }
 .sector-trend { font-size: 13px; letter-spacing: 1px; cursor: help; }
 .sector-trend { background: linear-gradient(90deg, #dc2626, #f97316, #16a34a); -webkit-background-clip: text; background-clip: text; }
-.sector-name { font-size: 17px; font-weight: 700; color: #1f2937; }
+.sector-name { font-size: 17px; font-weight: 700; color: #1f2937; white-space: nowrap; }
 .sector-heat { font-size: 12px; color: #fbbf24; letter-spacing: -1px; }
 .sector-analysis { font-size: 12px; color: #64748b; margin-bottom: 6px; line-height: 1.5; }
 .etf-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }

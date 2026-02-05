@@ -34,6 +34,8 @@ class FundService:
         # K线缓存: {secid: (timestamp, data)}
         self._kline_cache: dict[str, tuple[float, dict]] = {}
         self._cache_ttl = 300  # 5分钟
+        # K线(含日期)缓存: {secid: (timestamp, data)}
+        self._kline_date_cache: dict[str, tuple[float, list[tuple[str, float]]]] = {}
         # ETF列表缓存: {sector: [(code, name, amount), ...]}
         self._etf_list_cache: dict[str, list] = {}
         self._etf_cache_time: float = 0
@@ -661,6 +663,88 @@ class FundService:
             logger.warning(f"新浪K线API失败 {code}: {e}")
             return {}
 
+    async def _get_kline_dates_from_sina(self, client, code: str) -> list[tuple[str, float]]:
+        """从新浪获取带日期的K线数据"""
+        try:
+            prefix = "sh" if code.startswith("5") else "sz"
+            sina_code = f"{prefix}{code}"
+            resp = await client.get(
+                f"https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData",
+                params={
+                    "symbol": sina_code,
+                    "scale": "240",
+                    "ma": "no",
+                    "datalen": "200",
+                },
+                headers={"Referer": "https://finance.sina.com.cn"},
+            )
+            data = resp.json()
+            if not data or not isinstance(data, list):
+                return []
+            out = []
+            for item in data:
+                date = item.get("day")
+                close = item.get("close")
+                if date and close is not None:
+                    out.append((date, float(close)))
+            return out
+        except Exception as e:
+            logger.warning(f"新浪K线(含日期)失败 {code}: {e}")
+            return []
+
+    async def get_kline_date_map(
+        self,
+        *,
+        code: str | None = None,
+        secid: str | None = None,
+        limit: int = 200,
+    ) -> list[tuple[str, float]]:
+        """获取带日期的K线收盘价序列 (date, close)"""
+        if not secid:
+            if not code:
+                return []
+            secid = f"1.{code}" if code.startswith("5") else f"0.{code}"
+
+        now = time.time()
+        if secid in self._kline_date_cache:
+            cached_time, cached_data = self._kline_date_cache[secid]
+            if now - cached_time < self._cache_ttl:
+                return cached_data
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout, headers=self.headers) as client:
+                resp = await client.get(
+                    "https://push2his.eastmoney.com/api/qt/stock/kline/get",
+                    params={
+                        "secid": secid,
+                        "fields1": "f1,f2,f3",
+                        "fields2": "f51,f52,f53",
+                        "klt": "101",
+                        "fqt": "1",
+                        "end": "20500101",
+                        "lmt": str(limit),
+                    },
+                )
+                klines = resp.json().get("data", {}).get("klines", [])
+                if klines:
+                    out = []
+                    for k in klines:
+                        parts = k.split(",")
+                        if len(parts) >= 3:
+                            out.append((parts[0], float(parts[2])))
+                    self._kline_date_cache[secid] = (now, out)
+                    return out
+
+                # 东方财富无数据，尝试新浪
+                if not code:
+                    code = secid.split(".")[1]
+                out = await self._get_kline_dates_from_sina(client, code)
+                if out:
+                    self._kline_date_cache[secid] = (now, out)
+                return out
+        except Exception as e:
+            logger.warning(f"东方财富K线(含日期)失败 {secid}: {e}")
+            return []
     async def batch_get_funds(self, codes: list[str]) -> dict[str, dict]:
         """批量获取基金信息（实时行情+多周期涨跌幅）"""
         if not codes:

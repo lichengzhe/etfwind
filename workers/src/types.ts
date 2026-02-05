@@ -48,12 +48,14 @@ export interface LatestData {
 export interface ReviewSummary {
   as_of: string
   horizons: Record<string, ReviewHorizon>
+  benchmark?: { name: string; secid: string }
 }
 
 export interface ReviewHorizon {
   count: number
   win_rate: number
   avg_return: number
+  avg_excess?: number
 }
 
 export interface OverheatInfo {

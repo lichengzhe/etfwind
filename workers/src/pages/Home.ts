@@ -322,6 +322,7 @@ export function renderHome(data: LatestData, etfMaster: Record<string, any>): st
             <div class="review-title">${k}日</div>
             <div class="review-metric">胜率 ${v.win_rate}%</div>
             <div class="review-metric">均值 ${v.avg_return}%</div>
+            ${typeof v.avg_excess === 'number' ? `<div class="review-metric">超额 ${v.avg_excess}%</div>` : ''}
             <div class="review-sub">${v.count} 条</div>
           </div>
         `).join('')}
