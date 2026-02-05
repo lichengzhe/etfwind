@@ -112,6 +112,7 @@ def load_history(days: int = 7) -> list[dict]:
                     "date": date_str,
                     "sectors": data["sectors"],
                     "sentiment": data.get("sentiment", ""),
+                    "market_view": data.get("market_view", ""),
                 })
                 logger.info(f"  ✅ {date_str}: {len(data['sectors'])} 个板块")
                 continue
@@ -127,6 +128,7 @@ def load_history(days: int = 7) -> list[dict]:
                     "date": date_str,
                     "sectors": sectors,
                     "sentiment": result.get("sentiment", ""),
+                    "market_view": result.get("market_view", ""),
                 })
                 logger.info(f"  ✅ {date_str}: {len(sectors)} 个板块 (旧格式)")
             else:
@@ -173,19 +175,32 @@ def _describe_trend(arrows: list[str]) -> str:
 
 
 def format_history_context(history: list[dict]) -> str:
-    """格式化历史数据为 AI 上下文（板块趋势）"""
+    """格式化历史数据为 AI 上下文（历史观点 + 板块趋势）"""
     if not history:
         return ""
+
+    lines = []
+
+    # 添加历史市场观点（最近3天，节省token）
+    market_views = []
+    for h in history[:3]:
+        date = h.get("date", "")
+        view = h.get("market_view", "")
+        if date and view:
+            market_views.append(f"- {date}: {view}")
+
+    if market_views:
+        lines.append("## 近日市场观点")
+        lines.extend(market_views)
+        lines.append("")
 
     # 收集所有出现过的板块
     all_sectors = set()
     for h in history:
         all_sectors.update(h.get("sectors", {}).keys())
 
-    if not all_sectors:
-        return ""
-
-    lines = ["## 近7日板块趋势"]
+    if all_sectors:
+        lines.append("## 近7日板块趋势")
 
     # 为每个板块生成趋势箭头
     for sector in sorted(all_sectors):
