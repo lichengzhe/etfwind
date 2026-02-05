@@ -179,7 +179,7 @@ async def analyze(items: list[NewsItem], sector_list: list[str] = None, history_
             import re
             logger.warning(f"JSON 解析失败，尝试修复: {e}")
             # 修复：中文引号替换
-            text = text.replace('"', '"').replace('"', '"')
+            text = text.replace("“", '"').replace("”", '"')
             # 修复：移除尾部逗号
             text = re.sub(r',(\s*[}\]])', r'\1', text)
             # 修复：字符串内的换行（更彻底的方法）

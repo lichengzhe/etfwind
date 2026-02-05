@@ -328,7 +328,7 @@ class FundService:
         history_amounts = {}
         try:
             from pathlib import Path
-            etf_file = Path(__file__).parent.parent / "data" / "etf_master.json"
+            etf_file = Path(__file__).parent.parent.parent / "config" / "etf_master.json"
             if etf_file.exists():
                 old_data = json.loads(etf_file.read_text())
                 old_etfs = old_data.get("etfs", {})
