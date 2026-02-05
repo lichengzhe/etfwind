@@ -22,31 +22,28 @@ ARCHIVE_DIR.mkdir(exist_ok=True)
 
 
 def archive_data(beijing_tz):
-    """归档数据：当天保留，7天每天一份，1月每周一份，1年每月一份"""
+    """归档数据：只保存板块趋势指标，用于7日趋势展示"""
     logger.info("=== 开始归档数据 ===")
     now = datetime.now(beijing_tz)
     today = now.strftime("%Y-%m-%d")
 
-    # 归档 latest.json 到当天（含精简摘要）
     latest_file = DATA_DIR / "latest.json"
     if latest_file.exists():
         daily_file = ARCHIVE_DIR / f"latest_{today}.json"
         if not daily_file.exists():
-            # 读取并添加摘要
             data = json.loads(latest_file.read_text())
             result = data.get("result", {})
-            # FOTH Matrix 归档
-            data["foth"] = {
-                "facts": result.get("facts", [])[:5],
-                "opinions": result.get("opinions", {}),
-                "sectors": [
-                    {"name": s["name"], "heat": s["heat"], "direction": s["direction"]}
-                    for s in result.get("sectors", [])[:4]
-                ],
+            # 简化归档：只保存趋势所需的最小数据
+            archive = {
+                "date": today,
+                "sectors": {
+                    s["name"]: {"dir": s["direction"], "heat": s["heat"]}
+                    for s in result.get("sectors", [])
+                },
+                "sentiment": result.get("sentiment", ""),
                 "market_view": result.get("market_view", ""),
-                "commodity_cycle": result.get("commodity_cycle", {}),
             }
-            daily_file.write_text(json.dumps(data, ensure_ascii=False, indent=2))
+            daily_file.write_text(json.dumps(archive, ensure_ascii=False, indent=2))
             logger.info(f"✅ 归档成功: {daily_file.name}")
         else:
             logger.info(f"⏭️ 今日已归档: {daily_file.name}")
@@ -97,7 +94,7 @@ def cleanup_archives(now: datetime):
 
 
 def load_history(days: int = 7) -> list[dict]:
-    """读取近N天的历史归档数据（FOTH Matrix）"""
+    """读取近N天的历史归档数据（简化版：只读取板块趋势）"""
     logger.info(f"=== 读取历史数据 (最近{days}天) ===")
     history = []
 
@@ -108,29 +105,30 @@ def load_history(days: int = 7) -> list[dict]:
         try:
             data = json.loads(f.read_text())
             date_str = f.stem.replace("latest_", "")
-            result = data.get("result", {})
 
-            # 新格式：FOTH
-            foth = data.get("foth", {})
-            if foth:
-                history.append({"date": date_str, **foth})
-                facts_count = len(foth.get("facts", []))
-                logger.info(f"  ✅ {date_str}: {facts_count} facts (foth)")
-                continue
-
-            # 兼容旧格式
-            if result.get("sectors"):
+            # 新格式：简化归档
+            if "sectors" in data and isinstance(data["sectors"], dict):
                 history.append({
                     "date": date_str,
-                    "facts": result.get("facts", result.get("key_events", [])),
-                    "opinions": result.get("opinions", {}),
-                    "sectors": [
-                        {"name": s["name"], "heat": s["heat"], "direction": s["direction"]}
-                        for s in result.get("sectors", [])[:4]
-                    ],
-                    "market_view": result.get("market_view", ""),
+                    "sectors": data["sectors"],
+                    "sentiment": data.get("sentiment", ""),
                 })
-                logger.info(f"  ✅ {date_str}: 从 result 提取")
+                logger.info(f"  ✅ {date_str}: {len(data['sectors'])} 个板块")
+                continue
+
+            # 兼容旧格式（从 result 提取）
+            result = data.get("result", {})
+            if result.get("sectors"):
+                sectors = {
+                    s["name"]: {"dir": s["direction"], "heat": s["heat"]}
+                    for s in result.get("sectors", [])
+                }
+                history.append({
+                    "date": date_str,
+                    "sectors": sectors,
+                    "sentiment": result.get("sentiment", ""),
+                })
+                logger.info(f"  ✅ {date_str}: {len(sectors)} 个板块 (旧格式)")
             else:
                 logger.info(f"  ⏭️ {date_str}: 无数据")
         except Exception as e:
@@ -140,55 +138,118 @@ def load_history(days: int = 7) -> list[dict]:
     return history
 
 
-def format_history_context(history: list[dict]) -> str:
-    """格式化历史数据为 AI 上下文（FOTH Matrix）
+def _describe_trend(arrows: list[str]) -> str:
+    """根据箭头序列生成趋势描述"""
+    if not arrows:
+        return ""
 
-    分离展示 Facts 和 Opinions，让 AI 独立判断
-    """
+    if len(arrows) == 1:
+        return "今日" + ("利好" if arrows[0] == "↑" else "利空" if arrows[0] == "↓" else "中性")
+
+    # 统计连续相同方向
+    up_count = arrows.count("↑")
+    down_count = arrows.count("↓")
+
+    # 检查最近趋势
+    recent = arrows[-3:] if len(arrows) >= 3 else arrows
+    recent_up = recent.count("↑")
+    recent_down = recent.count("↓")
+
+    # 生成描述
+    if all(a == "↑" for a in arrows):
+        return f"{len(arrows)}连利好"
+    elif all(a == "↓" for a in arrows):
+        return f"{len(arrows)}连利空"
+    elif recent_up >= 2 and down_count > 0:
+        return "近日转好"
+    elif recent_down >= 2 and up_count > 0:
+        return "近日转弱"
+    elif up_count > down_count:
+        return "整体偏好"
+    elif down_count > up_count:
+        return "整体偏弱"
+    else:
+        return "震荡"
+
+
+def format_history_context(history: list[dict]) -> str:
+    """格式化历史数据为 AI 上下文（板块趋势）"""
     if not history:
         return ""
 
-    lines = ["## 历史数据（FOTH Matrix）"]
+    # 收集所有出现过的板块
+    all_sectors = set()
+    for h in history:
+        all_sectors.update(h.get("sectors", {}).keys())
 
-    # History Facts
-    lines.append("\n### History Facts（客观事件）")
-    for h in history[:3]:
-        facts = h.get("facts", [])
-        if facts:
-            lines.append(f"**{h['date']}**: {'; '.join(facts[:3])}")
+    if not all_sectors:
+        return ""
 
-    # History Opinions
-    lines.append("\n### History Opinions（市场情绪）")
-    for h in history[:3]:
-        opinions = h.get("opinions", {})
-        sectors = h.get("sectors", [])
-        if opinions or sectors:
-            sentiment = opinions.get("sentiment", "")
-            hot_words = opinions.get("hot_words", [])
-            sector_str = ", ".join(
-                f"{s['name']}{'↑' if s['direction']=='利好' else '↓'}"
-                for s in sectors[:3]
-            )
-            parts = []
-            if sentiment:
-                parts.append(sentiment)
-            if hot_words:
-                parts.append(f"热词:{','.join(hot_words[:3])}")
-            if sector_str:
-                parts.append(f"热点:{sector_str}")
-            if parts:
-                lines.append(f"**{h['date']}**: {' | '.join(parts)}")
+    lines = ["## 近7日板块趋势"]
 
-    # History Commodity Cycle（商品周期）
-    lines.append("\n### History Commodity Cycle（商品周期）")
-    for h in history[:3]:
-        cycle = h.get("commodity_cycle", {})
-        if cycle:
-            stage_name = cycle.get("stage_name", "")
-            if stage_name:
-                lines.append(f"**{h['date']}**: {stage_name}")
+    # 为每个板块生成趋势箭头
+    for sector in sorted(all_sectors):
+        arrows = []
+        for h in reversed(history):  # 从旧到新
+            s = h.get("sectors", {}).get(sector, {})
+            d = s.get("dir", "")
+            if d == "利好":
+                arrows.append("↑")
+            elif d == "利空":
+                arrows.append("↓")
+            elif d:
+                arrows.append("→")
+
+        if arrows:
+            arrow_str = "".join(arrows)
+            # 生成趋势描述
+            desc = _describe_trend(arrows)
+            lines.append(f"- {sector}: {arrow_str} ({desc})")
 
     return "\n".join(lines)
+
+
+def build_sector_trends(history: list[dict], current_sectors: list[dict]) -> dict:
+    """构建板块7日趋势数据，供前端展示
+
+    返回: {"黄金": {"arrows": "↑↑↑↑↑↑↑", "desc": "7连利好"}, ...}
+    """
+    trends = {}
+
+    # 当前板块名列表
+    current_names = {s["name"] for s in current_sectors}
+
+    for sector_name in current_names:
+        arrows = []
+        # 从历史数据中提取（从旧到新）
+        for h in reversed(history):
+            s = h.get("sectors", {}).get(sector_name, {})
+            d = s.get("dir", "")
+            if d == "利好":
+                arrows.append("↑")
+            elif d == "利空":
+                arrows.append("↓")
+            elif d:
+                arrows.append("→")
+
+        # 添加今日
+        current = next((s for s in current_sectors if s["name"] == sector_name), None)
+        if current:
+            d = current.get("direction", "")
+            if d == "利好":
+                arrows.append("↑")
+            elif d == "利空":
+                arrows.append("↓")
+            else:
+                arrows.append("→")
+
+        if arrows:
+            trends[sector_name] = {
+                "arrows": "".join(arrows[-7:]),  # 最多7天
+                "desc": _describe_trend(arrows[-7:])
+            }
+
+    return trends
 
 
 async def save_news(news_items, beijing_tz):

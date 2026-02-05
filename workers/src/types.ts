@@ -16,22 +16,36 @@ export interface Opinions {
   media_bias?: string
 }
 
-// 分析结果（FOTH Matrix）
+// 分析结果
 export interface AnalysisResult {
   market_view: string
-  narrative: string
-  facts?: string[]
-  opinions?: Opinions
+  summary?: string
+  narrative?: string
+  sentiment?: string
   sectors: Sector[]
-  risk_level: string
+  risk_alerts?: string[]
+  opportunity_hints?: string[]
+  commodity_cycle?: {
+    stage: number
+    stage_name: string
+    leader: string
+    analysis: string
+  }
 }
 
 // API 返回的完整数据
 export interface LatestData {
   result: AnalysisResult
+  sector_trends?: Record<string, SectorTrend>
   updated_at: string
   news_count: number
   source_stats: Record<string, number>
+}
+
+// 板块7日趋势
+export interface SectorTrend {
+  arrows: string  // "↑↑↓↑↑↑↑"
+  desc: string    // "近日转好"
 }
 
 // ETF 数据

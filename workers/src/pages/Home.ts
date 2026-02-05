@@ -164,7 +164,7 @@ function chgClass(v: number): string {
 }
 
 // 渲染板块卡片
-function renderSectorCard(sector: any, etfMaster: Record<string, any>): string {
+function renderSectorCard(sector: any, etfMaster: Record<string, any>, trend?: { arrows: string, desc: string }): string {
   // 服务端预渲染 ETF 占位数据，按成交额排序
   const lookupSector = SECTOR_ALIAS[sector.name] || sector.name
   const sectorEtfs = Object.values(etfMaster)
@@ -201,6 +201,9 @@ function renderSectorCard(sector: any, etfMaster: Record<string, any>): string {
   // 渲染信号标签
   const signalHtml = sector.signal ? `<span class="sector-signal">${sector.signal}</span>` : ''
 
+  // 渲染7日趋势箭头
+  const trendHtml = trend?.arrows ? `<span class="sector-trend" title="${trend.desc}">${trend.arrows}</span>` : ''
+
   // 渲染检查清单
   const checklistHtml = sector.checklist?.length
     ? `<div class="sector-checklist">${sector.checklist.map((c: string) => `<span>${c}</span>`).join('')}</div>`
@@ -212,7 +215,10 @@ function renderSectorCard(sector: any, etfMaster: Record<string, any>): string {
         <span class="sector-name">${sector.name}</span>
         <span class="sector-heat">${stars(sector.heat)}</span>
         ${signalHtml}
-        <span class="sector-dir ${dirClass(sector.direction)}">${sector.direction}</span>
+        <span class="sector-right">
+          ${trendHtml}
+          <span class="sector-dir ${dirClass(sector.direction)}">${sector.direction}</span>
+        </span>
       </div>
       <div class="sector-analysis">${sector.analysis}</div>
       ${checklistHtml}
@@ -223,7 +229,7 @@ function renderSectorCard(sector: any, etfMaster: Record<string, any>): string {
 
 // 渲染首页
 export function renderHome(data: LatestData, etfMaster: Record<string, any>): string {
-  const { result, updated_at, news_count, source_stats } = data
+  const { result, sector_trends, updated_at, news_count, source_stats } = data
 
   // Source 按权威度排序
   const sourceOrder = ['Bloomberg', 'WSJ', 'CNBC', '财联社', '财联社电报', '新浪财经', '东方财富', '东财快讯', '新浪7x24', '金十数据', '华尔街见闻']
@@ -245,7 +251,7 @@ export function renderHome(data: LatestData, etfMaster: Record<string, any>): st
     return b.heat - a.heat
   })
   const sectorsHtml = sortedSectors
-    .map(sector => renderSectorCard(sector, etfMaster))
+    .map(sector => renderSectorCard(sector, etfMaster, sector_trends?.[sector.name]))
     .join('')
 
   // 生成动态 SEO 描述
