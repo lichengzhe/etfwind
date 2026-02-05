@@ -54,6 +54,7 @@ export interface LatestData {
   result: AnalysisResult
   sector_trends?: Record<string, SectorTrend>
   review?: ReviewSummary
+  overheat?: OverheatInfo | null
   updated_at: string
   news_count: number
   source_stats: Record<string, number>
@@ -62,12 +63,19 @@ export interface LatestData {
 export interface ReviewSummary {
   as_of: string
   horizons: Record<string, ReviewHorizon>
+  by_type?: Record<string, Record<string, ReviewHorizon>>
 }
 
 export interface ReviewHorizon {
   count: number
   win_rate: number
   avg_return: number
+}
+
+export interface OverheatInfo {
+  level: '偏热' | '过热'
+  note: string
+  count: number
 }
 
 // 板块7日趋势

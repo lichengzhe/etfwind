@@ -78,10 +78,15 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
 .sentiment { display: inline-block; padding: 2px 10px; background: #fef3c7; color: #b45309; border-radius: 4px; font-size: 12px; font-weight: 500; }
 .review-card { padding: 10px 12px; }
 .review-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.review-subgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
 .review-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; text-align: center; }
 .review-title { font-size: 12px; color: #64748b; margin-bottom: 4px; }
 .review-metric { font-size: 13px; color: #1f2937; }
 .review-sub { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+.overheat-card { border-left: 3px solid #f59e0b; background: #fffbeb; }
+.overheat-badge { font-size: 11px; padding: 2px 6px; border-radius: 3px; background: #fde68a; color: #92400e; }
+.overheat-badge.过热 { background: #fecaca; color: #b91c1c; }
+.overheat-text { font-size: 12px; color: #92400e; }
 .alerts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
 .alert-box { background: #fff; border-radius: 10px; padding: 10px 12px; font-size: 12px; line-height: 1.6; }
 .alert-box b { display: block; margin-bottom: 4px; font-size: 13px; }
@@ -123,6 +128,7 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
   .signal-reason { display: none; }
   .sector-card { overflow-x: hidden; }
   .review-grid { display: flex; gap: 8px; overflow-x: auto; }
+  .review-subgrid { display: flex; gap: 8px; overflow-x: auto; }
   .etf-table { font-size: 12px; table-layout: fixed; }
   .etf-table thead { display: none; }
   .etf-table td:nth-child(1) { width: 41%; }

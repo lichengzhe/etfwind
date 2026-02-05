@@ -271,7 +271,7 @@ function renderSectorCard(sector: any, etfMaster: Record<string, any>, trend?: {
 
 // 渲染首页
 export function renderHome(data: LatestData, etfMaster: Record<string, any>): string {
-  const { result, sector_trends, review, updated_at, news_count, source_stats } = data
+  const { result, sector_trends, review, overheat, updated_at, news_count, source_stats } = data
 
   // Source 按权威度排序
   const sourceOrder = ['Bloomberg', 'WSJ', 'CNBC', '财联社', '财联社电报', '新浪财经', '东方财富', '东财快讯', '新浪7x24', '金十数据', '华尔街见闻']
@@ -361,6 +361,31 @@ export function renderHome(data: LatestData, etfMaster: Record<string, any>): st
           </div>
         `).join('')}
       </div>
+      ${review.by_type ? `
+      <div class="review-subgrid">
+        ${['short_term','mid_term'].map((t) => {
+          const label = t === 'short_term' ? '短线' : '中期'
+          const h = review.by_type?.[t]?.['7']
+          if (!h) return ''
+          return `<div class="review-item">
+            <div class="review-title">${label} 7日</div>
+            <div class="review-metric">胜率 ${h.win_rate}%</div>
+            <div class="review-metric">均值 ${h.avg_return}%</div>
+            <div class="review-sub">${h.count} 条</div>
+          </div>`
+        }).join('')}
+      </div>
+      ` : ''}
+    </div>
+    ` : ''}
+
+    ${overheat ? `
+    <div class="card overheat-card">
+      <div class="card-header">
+        <h2>过热提示</h2>
+        <span class="overheat-badge ${overheat.level}">${overheat.level}</span>
+      </div>
+      <div class="overheat-text">${overheat.note}（${overheat.count} 个高热板块）</div>
     </div>
     ` : ''}
 

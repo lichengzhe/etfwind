@@ -91,11 +91,37 @@ async def run():
     # 信号复盘
     review = await update_review(result, beijing_tz)
 
+    # 过热预警（P1）：基于热度、方向、置信度的轻量规则
+    overheat = None
+    try:
+        sectors = result.get("sectors", [])
+        hot = [
+            s for s in sectors
+            if s.get("direction") == "利好"
+            and s.get("heat", 0) >= 4
+            and s.get("confidence", 0) >= 80
+        ]
+        if len(hot) >= 3:
+            overheat = {
+                "level": "过热",
+                "note": "高热度板块过多，注意追高风险",
+                "count": len(hot),
+            }
+        elif len(hot) == 2:
+            overheat = {
+                "level": "偏热",
+                "note": "热点集中，注意高位波动",
+                "count": len(hot),
+            }
+    except Exception:
+        overheat = None
+
     # 保存结果
     output = {
         "result": result,
         "sector_trends": sector_trends,
         "review": review,
+        "overheat": overheat,
         "updated_at": datetime.now(beijing_tz).isoformat(),
         "news_count": len(items),
         "source_stats": source_stats,
