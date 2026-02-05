@@ -202,7 +202,10 @@ function renderSectorCard(sector: any, etfMaster: Record<string, any>, trend?: {
   const signalHtml = sector.signal ? `<span class="sector-signal">${sector.signal}</span>` : ''
 
   // 渲染7日趋势箭头
-  const trendHtml = trend?.arrows ? `<span class="sector-trend" title="${trend.desc}">${trend.arrows}</span>` : ''
+  const trendHtml = trend?.arrows ? `<span class="sector-trend">${trend.arrows}</span>` : ''
+
+  // 方向标签（含趋势描述）
+  const dirText = trend?.desc ? `${sector.direction}·${trend.desc}` : sector.direction
 
   // 渲染检查清单
   const checklistHtml = sector.checklist?.length
@@ -217,7 +220,7 @@ function renderSectorCard(sector: any, etfMaster: Record<string, any>, trend?: {
         ${signalHtml}
         <span class="sector-right">
           ${trendHtml}
-          <span class="sector-dir ${dirClass(sector.direction)}">${sector.direction}</span>
+          <span class="sector-dir ${dirClass(sector.direction)}">${dirText}</span>
         </span>
       </div>
       <div class="sector-analysis">${sector.analysis}</div>
