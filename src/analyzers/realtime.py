@@ -88,6 +88,7 @@ ANALYSIS_PROMPT = """你是A股ETF投资分析师，专注板块轮动和ETF配�
 3. risk_alerts: 今日需警惕的2-3个风险点
 4. opportunity_hints: 今日值得关注的2-3个机会
 5. commodity_cycle.leader: 当前领涨商品（用于前端高亮）
+6. 重要：JSON字符串中禁止使用中文引号""，只用英文引号或不用引号
 """
 
 
