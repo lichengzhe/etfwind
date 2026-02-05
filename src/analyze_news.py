@@ -61,6 +61,8 @@ async def run():
     # 加载历史
     history = load_history(days=7)
     history_context = format_history_context(history)
+    if history_context:
+        logger.info(f"📜 历史上下文:\n{history_context}")
 
     # 读取板块列表
     master_file = Path(__file__).parent.parent / "config" / "etf_master.json"
