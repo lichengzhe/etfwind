@@ -78,7 +78,6 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
 .sentiment { display: inline-block; padding: 2px 10px; background: #fef3c7; color: #b45309; border-radius: 4px; font-size: 12px; font-weight: 500; }
 .review-card { padding: 10px 12px; }
 .review-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.review-subgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
 .review-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; text-align: center; }
 .review-title { font-size: 12px; color: #64748b; margin-bottom: 4px; }
 .review-metric { font-size: 13px; color: #1f2937; }
@@ -95,12 +94,7 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
 .alert-box.opportunity { border-left: 3px solid #22c55e; background: #f0fdf4; }
 .alert-box.opportunity b { color: #16a34a; }
 .sector-signal { font-size: 11px; padding: 2px 6px; border-radius: 3px; background: #f3f4f6; }
-.sector-checklist { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; font-size: 11px; color: #6b7280; }
 .sector-confidence { font-size: 11px; padding: 2px 6px; border-radius: 3px; background: #eef2ff; color: #4f46e5; }
-.sector-state { font-size: 11px; padding: 2px 6px; border-radius: 3px; background: #ecfeff; color: #0e7490; }
-.sector-signals { display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; margin: 6px 0; font-size: 11px; color: #475569; }
-.signal-badge { font-size: 11px; padding: 2px 6px; border-radius: 3px; background: #f3f4f6; color: #334155; }
-.signal-reason { color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sector-evidence { margin: 6px 0; padding: 6px 8px; background: #f8fafc; border-radius: 6px; border: 1px dashed #e2e8f0; font-size: 11px; color: #475569; }
 .sector-evidence .evidence-title { font-weight: 600; color: #334155; margin-bottom: 4px; }
 .sector-evidence .evidence-item { margin-bottom: 3px; }
@@ -124,11 +118,8 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
   .card p { font-size: 12px; }
   .sector-name { font-size: 15px; }
   .sector-analysis { font-size: 11px; }
-  .sector-signals { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 6px; }
-  .signal-reason { display: none; }
   .sector-card { overflow-x: hidden; }
   .review-grid { display: flex; gap: 8px; overflow-x: auto; }
-  .review-subgrid { display: flex; gap: 8px; overflow-x: auto; }
   .etf-table { font-size: 12px; table-layout: fixed; }
   .etf-table thead { display: none; }
   .etf-table td:nth-child(1) { width: 41%; }

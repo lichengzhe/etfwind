@@ -17,6 +17,32 @@ from src.analyzers.realtime import analyze
 from src.notify import send_wechat_message, format_analysis_message
 
 
+def _dedupe_analysis_with_checklist(result: dict):
+    """去除分析中与检查清单重复的句子"""
+    import re
+    sectors = result.get("sectors", [])
+    for sector in sectors:
+        analysis = sector.get("analysis", "")
+        checklist = sector.get("checklist", []) or []
+        if not analysis or not checklist:
+            continue
+        phrases = []
+        for c in checklist:
+            c = re.sub(r"^[✅⚠️❌]\s*", "", str(c)).strip()
+            if c:
+                phrases.append(c)
+        if not phrases:
+            continue
+        # 句子切分
+        sentences = re.split(r"(?<=[。！？；;])\s*", analysis)
+        filtered = [
+            s for s in sentences
+            if s and not any(p in s for p in phrases)
+        ]
+        if filtered:
+            sector["analysis"] = "".join(filtered).strip()
+
+
 def load_news_raw() -> tuple[list[NewsItem], dict]:
     """从 news_raw.json 加载新闻"""
     raw_file = DATA_DIR / "news_raw.json"
@@ -78,6 +104,8 @@ async def run():
     if not result or not result.get("sectors"):
         logger.error("分析失败")
         return
+
+    _dedupe_analysis_with_checklist(result)
 
     logger.info(f"分析完成: {len(result['sectors'])} 个板块")
 

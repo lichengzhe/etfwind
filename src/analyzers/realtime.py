@@ -63,12 +63,8 @@ ANALYSIS_PROMPT = """你是A股ETF投资分析师，专注板块轮动和ETF配�
       "heat": 5,
       "direction": "利好/利空/中性",
       "confidence": 80,
-      "state": "观察/建仓/持有/减仓/回避",
-      "short_term": {{ "signal": "🟢买入/🟡观望/🔴回避", "reason": "短线催化/资金/动量" }},
-      "mid_term": {{ "signal": "🟢买入/🟡观望/🔴回避", "reason": "1-4周趋势/景气/政策" }},
       "analysis": "板块分析（80字）：包含驱动因素+风险提示",
       "signal": "🟢买入/🟡观望/🔴回避",
-      "checklist": ["✅ 政策支持", "✅ 业绩向好", "⚠️ 估值偏高"],
       "evidence": [
         {{"title": "新闻标题", "source": "来源", "reason": "与板块相关的因果/驱动"}}
       ]
@@ -89,11 +85,7 @@ ANALYSIS_PROMPT = """你是A股ETF投资分析师，专注板块轮动和ETF配�
 1. market_view: 一句话说清今日主线，有操作指引性
 2. sectors: 最多6个板块，按热度排序
    - signal: 基于热度+方向+风险综合判断
-   - checklist: 3项检查，用✅⚠️❌标记
    - confidence: 0-100 分，代表信号把握度
-   - state: 观察/建仓/持有/减仓/回避（体现仓位阶段）
-   - short_term: T+1 交易信号 + 理由
-   - mid_term: 1-4周趋势信号 + 理由
    - evidence: 2-4条，必须来自“新闻数据”中的标题，写明来源与因果
 3. risk_alerts: 今日需警惕的2-3个风险点
 4. opportunity_hints: 今日值得关注的2-3个机会

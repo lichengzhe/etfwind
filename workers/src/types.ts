@@ -4,19 +4,11 @@ export interface Sector {
   heat: number
   direction: '利好' | '利空' | '中性'
   confidence?: number
-  state?: '观察' | '建仓' | '持有' | '减仓' | '回避'
-  short_term?: SectorSignal
-  mid_term?: SectorSignal
   analysis: string
   catalyst?: string
   news?: string[]
   evidence?: SectorEvidence[]
   etfs?: EtfData[]
-}
-
-export interface SectorSignal {
-  signal: string
-  reason?: string
 }
 
 export interface SectorEvidence {
@@ -63,7 +55,6 @@ export interface LatestData {
 export interface ReviewSummary {
   as_of: string
   horizons: Record<string, ReviewHorizon>
-  by_type?: Record<string, Record<string, ReviewHorizon>>
 }
 
 export interface ReviewHorizon {

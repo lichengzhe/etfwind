@@ -68,7 +68,7 @@ async def update_review(result: dict, beijing_tz) -> dict:
         if code in latest_prices:
             s["latest_price"] = latest_prices[code].get("price")
 
-    # 添加今日信号（只记录买入信号，short/mid 各一条）
+    # 添加今日信号（只记录买入信号）
     today = now.strftime("%Y-%m-%d")
     sectors = result.get("sectors", [])
     today_entries = []
@@ -80,21 +80,17 @@ async def update_review(result: dict, beijing_tz) -> dict:
         price = etfs[0].get("price")
         if not code or price is None:
             continue
-        for key in ("short_term", "mid_term"):
-            sig = sector.get(key)
-            if not sig:
-                continue
-            signal_text = sig.get("signal", "")
-            if "买入" not in signal_text:
-                continue
-            today_entries.append({
-                "date": today,
-                "sector": sector.get("name"),
-                "type": key,
-                "signal": signal_text,
-                "etf_code": code,
-                "entry_price": price,
-            })
+        signal_text = sector.get("signal", "")
+        if "买入" not in signal_text:
+            continue
+        today_entries.append({
+            "date": today,
+            "sector": sector.get("name"),
+            "type": "overall",
+            "signal": signal_text,
+            "etf_code": code,
+            "entry_price": price,
+        })
 
     if today_entries:
         signals.extend(today_entries)
@@ -105,7 +101,7 @@ async def update_review(result: dict, beijing_tz) -> dict:
 
     # 计算复盘指标（1/3/7/20日）
     horizons = [1, 3, 7, 20]
-    summary = {"as_of": now.isoformat(), "horizons": {}, "by_type": {}}
+    summary = {"as_of": now.isoformat(), "horizons": {}}
     for h in horizons:
         returns = []
         for s in signals:
@@ -127,33 +123,6 @@ async def update_review(result: dict, beijing_tz) -> dict:
             }
         else:
             summary["horizons"][str(h)] = {"count": 0, "win_rate": 0, "avg_return": 0}
-
-    # 按信号类型拆分
-    for t in ("short_term", "mid_term"):
-        summary["by_type"][t] = {}
-        for h in horizons:
-            returns = []
-            for s in signals:
-                if s.get("type") != t:
-                    continue
-                days = _days_between(now, s.get("date", ""))
-                if days is None or days < h:
-                    continue
-                entry = s.get("entry_price")
-                latest = s.get("latest_price")
-                if not entry or not latest:
-                    continue
-                returns.append((latest - entry) / entry * 100)
-            if returns:
-                win_rate = sum(1 for r in returns if r > 0) / len(returns) * 100
-                avg_ret = sum(returns) / len(returns)
-                summary["by_type"][t][str(h)] = {
-                    "count": len(returns),
-                    "win_rate": round(win_rate, 1),
-                    "avg_return": round(avg_ret, 2),
-                }
-            else:
-                summary["by_type"][t][str(h)] = {"count": 0, "win_rate": 0, "avg_return": 0}
 
     return summary
 

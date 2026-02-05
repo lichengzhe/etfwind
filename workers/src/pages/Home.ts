@@ -201,8 +201,8 @@ function renderSectorCard(sector: any, etfMaster: Record<string, any>, trend?: {
     </table>
   `
 
-  // 渲染信号标签（有状态时避免重复）
-  const signalHtml = sector.signal && !sector.state ? `<span class="sector-signal">${sector.signal}</span>` : ''
+  // 渲染信号标签
+  const signalHtml = sector.signal ? `<span class="sector-signal">${sector.signal}</span>` : ''
 
   // 渲染7日趋势箭头
   const trendHtml = trend?.arrows ? `<span class="sector-trend">${trend.arrows}</span>` : ''
@@ -210,26 +210,10 @@ function renderSectorCard(sector: any, etfMaster: Record<string, any>, trend?: {
   // 方向标签（有趋势描述时只显示描述）
   const dirText = trend?.desc || sector.direction
 
-  // 渲染检查清单
-  const checklistHtml = sector.checklist?.length
-    ? `<div class="sector-checklist">${sector.checklist.map((c: string) => `<span>${c}</span>`).join('')}</div>`
-    : ''
-
   // 置信度标签
   const confidence = typeof sector.confidence === 'number' ? Math.max(0, Math.min(100, sector.confidence)) : null
   const confidenceHtml = confidence !== null
     ? `<span class="sector-confidence">置信 ${confidence}</span>`
-    : ''
-
-  // 状态与短中期信号
-  const stateHtml = sector.state ? `<span class="sector-state">${sector.state}</span>` : ''
-  const shortTerm = sector.short_term
-  const midTerm = sector.mid_term
-  const signalRowHtml = (shortTerm || midTerm)
-    ? `<div class="sector-signals">
-        ${shortTerm ? `<span class="signal-badge">短 ${shortTerm.signal}</span><span class="signal-reason">${shortTerm.reason || ''}</span>` : ''}
-        ${midTerm ? `<span class="signal-badge">中 ${midTerm.signal}</span><span class="signal-reason">${midTerm.reason || ''}</span>` : ''}
-      </div>`
     : ''
 
   // 证据卡片
@@ -254,15 +238,12 @@ function renderSectorCard(sector: any, etfMaster: Record<string, any>, trend?: {
         <span class="sector-heat">${stars(sector.heat)}</span>
         ${signalHtml}
         ${confidenceHtml}
-        ${stateHtml}
         <span class="sector-right">
           ${trendHtml}
           <span class="sector-dir ${dirClass(sector.direction)}">${dirText}</span>
         </span>
       </div>
       <div class="sector-analysis">${sector.analysis}</div>
-      ${signalRowHtml}
-      ${checklistHtml}
       ${evidenceHtml}
       ${etfTableHtml}
     </div>
@@ -361,21 +342,6 @@ export function renderHome(data: LatestData, etfMaster: Record<string, any>): st
           </div>
         `).join('')}
       </div>
-      ${review.by_type ? `
-      <div class="review-subgrid">
-        ${['short_term','mid_term'].map((t) => {
-          const label = t === 'short_term' ? '短线' : '中期'
-          const h = review.by_type?.[t]?.['7']
-          if (!h) return ''
-          return `<div class="review-item">
-            <div class="review-title">${label} 7日</div>
-            <div class="review-metric">胜率 ${h.win_rate}%</div>
-            <div class="review-metric">均值 ${h.avg_return}%</div>
-            <div class="review-sub">${h.count} 条</div>
-          </div>`
-        }).join('')}
-      </div>
-      ` : ''}
     </div>
     ` : ''}
 
