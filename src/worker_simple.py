@@ -109,11 +109,17 @@ async def update_review(result: dict, beijing_tz) -> dict:
     bench_dates = [d for d, _ in benchmark_kline]
     bench_closes = [c for _, c in benchmark_kline]
 
+    codes = list({s.get("etf_code") for s in signals if s.get("etf_code")})
     code_to_kline: dict[str, list[tuple[str, float]]] = {}
-    for s in signals:
-        code = s.get("etf_code")
-        if code and code not in code_to_kline:
-            code_to_kline[code] = await fund_service.get_kline_date_map(code=code)
+    if codes:
+        sem = asyncio.Semaphore(5)
+
+        async def fetch_kline(c: str):
+            async with sem:
+                return await fund_service.get_kline_date_map(code=c)
+
+        results = await asyncio.gather(*(fetch_kline(c) for c in codes))
+        code_to_kline = dict(zip(codes, results))
 
     for h in horizons:
         returns = []

@@ -36,6 +36,7 @@ class FundService:
         self._cache_ttl = 300  # 5分钟
         # K线(含日期)缓存: {secid: (timestamp, data)}
         self._kline_date_cache: dict[str, tuple[float, list[tuple[str, float]]]] = {}
+        self._kline_date_cache_ttl = 3600  # 1小时
         # ETF列表缓存: {sector: [(code, name, amount), ...]}
         self._etf_list_cache: dict[str, list] = {}
         self._etf_cache_time: float = 0
@@ -708,7 +709,7 @@ class FundService:
         now = time.time()
         if secid in self._kline_date_cache:
             cached_time, cached_data = self._kline_date_cache[secid]
-            if now - cached_time < self._cache_ttl:
+            if now - cached_time < self._kline_date_cache_ttl:
                 return cached_data
 
         try:
@@ -745,6 +746,7 @@ class FundService:
         except Exception as e:
             logger.warning(f"东方财富K线(含日期)失败 {secid}: {e}")
             return []
+
     async def batch_get_funds(self, codes: list[str]) -> dict[str, dict]:
         """批量获取基金信息（实时行情+多周期涨跌幅）"""
         if not codes:
