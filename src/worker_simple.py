@@ -181,9 +181,9 @@ def format_history_context(history: list[dict]) -> str:
 
     lines = []
 
-    # 添加历史市场观点（最近3天，节省token）
+    # 添加历史市场观点（最近7天，与板块趋势对齐）
     market_views = []
-    for h in history[:3]:
+    for h in history[:7]:
         date = h.get("date", "")
         view = h.get("market_view", "")
         if date and view:
