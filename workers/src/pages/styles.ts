@@ -96,7 +96,6 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
 .sector-signal { font-size: 11px; padding: 2px 6px; border-radius: 3px; background: #f3f4f6; }
 .sector-confidence { font-size: 11px; padding: 2px 6px; border-radius: 3px; background: #eef2ff; color: #4f46e5; }
 .sector-evidence { margin: 6px 0; padding: 6px 8px; background: #f8fafc; border-radius: 6px; border: 1px dashed #e2e8f0; font-size: 11px; color: #475569; }
-.sector-evidence .evidence-title { font-weight: 600; color: #334155; margin-bottom: 4px; }
 .sector-evidence .evidence-item { margin-bottom: 3px; }
 .sector-evidence .evidence-item:last-child { margin-bottom: 0; }
 .sector-evidence .evidence-source { color: #64748b; margin-right: 4px; }

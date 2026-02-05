@@ -220,7 +220,6 @@ function renderSectorCard(sector: any, etfMaster: Record<string, any>, trend?: {
   const evidence = Array.isArray(sector.evidence) ? sector.evidence.slice(0, 3) : []
   const evidenceHtml = evidence.length
     ? `<div class="sector-evidence">
-        <div class="evidence-title">新闻</div>
         ${evidence.map((e: any) => {
           const title = e.title || ''
           const source = e.source || ''
