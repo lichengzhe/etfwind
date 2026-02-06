@@ -49,6 +49,6 @@ jobs:
           AWS_ENDPOINT_URL: https://3cd484f565a03d34b3c765a2e17a8989.r2.cloudflarestorage.com
         run: |
           aws s3 cp src/data/latest.json s3://invest-data/latest.json
-          aws s3 cp src/data/news.json s3://invest-data/news.json
+          aws s3 cp src/data/news.json s3://invest-data/news.json || true
           aws s3 cp src/data/review.json s3://invest-data/review.json
           aws s3 sync src/data/archive/ s3://invest-data/archive/
