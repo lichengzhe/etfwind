@@ -119,7 +119,7 @@ async def analyze(items: list[NewsItem], sector_list: list[str] = None, history_
     if not sector_list:
         sector_list = [
             # 科技
-            "芯片", "半导体", "人工智能", "软件", "通信", "机器人", "互联网",
+            "芯片", "AI", "软件", "通信", "机器人", "互联网",
             # 新能源
             "光伏", "新能源", "锂电池", "新能源车",
             # 金融
@@ -130,7 +130,7 @@ async def analyze(items: list[NewsItem], sector_list: list[str] = None, history_
             "黄金", "贵金属", "有色", "煤炭", "钢铁", "石油", "化工",
             # 其他
             "军工", "农业", "房地产", "电力", "环保",
-            "恒生科技", "港股", "游戏", "传媒",
+            "港股", "游戏", "传媒",
         ]
 
     sector_str = "/".join(sector_list)

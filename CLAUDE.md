@@ -56,7 +56,7 @@ Cloudflare Workers ← 从 R2 读取 JSON 渲染页面
 - `src/collectors/` - 11个新闻采集器（含证券时报）
 - `src/services/fund_service.py` - ETF 数据服务
 - `src/notify/` - 通知推送模块（企业微信）
-- `config/etf_master.json` - ETF 主数据（642个ETF，32个板块）
+- `config/etf_master.json` - ETF 主数据（642个ETF，30个板块）
 - `scripts/update_etf_master.py` - ETF Master 更新脚本
 - `workers/src/index.ts` - Hono 路由
 - `workers/src/pages/Home.ts` - 首页渲染
@@ -84,7 +84,7 @@ Cloudflare R2（数据存储）：
 
 ## Key Data Structures
 
-**etf_master.json（ETF 主数据，642个ETF）：**
+**etf_master.json（ETF 主数据，642个ETF，30个板块）：**
 ```json
 {
   "etfs": {
