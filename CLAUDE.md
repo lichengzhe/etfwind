@@ -41,9 +41,13 @@ GitHub Actions
 ├── Collect News (collect_news.yml, 每3小时 6:00-21:00 UTC+8) → news_raw.json → R2
 │   └── 含 Playwright，耗时 ~1.5分钟
 │
-└── Analyze News (analyze_news.yml, 采集后自动触发 / 手动)
-    └── 读取 news_raw.json → AI分析 → latest.json + review.json → R2
-    └── 无需 Playwright，耗时 ~1分钟
+├── Analyze News (analyze_news.yml, 采集后自动触发 / 手动)
+│   └── 读取 news_raw.json → AI分析 → latest.json + review.json + etf_master.json → R2
+│   └── 无需 Playwright，耗时 ~1分钟
+│
+└── Update ETF Master (update_etf_master.yml, 每月1号 / 手动)
+    └── 全量重建 etf_master.json（ETF列表 + AI分类 + 90天K线）→ R2
+    └── 耗时 ~10分钟
 
 Cloudflare Workers ← 从 R2 读取 JSON 渲染页面
 ```
@@ -61,7 +65,7 @@ Cloudflare Workers ← 从 R2 读取 JSON 渲染页面
 - `workers/src/index.ts` - Hono 路由
 - `workers/src/pages/Home.ts` - 首页渲染
 - `src/data/review.json` - 信号回测数据（1/3/7/20交易日胜率）
-- `scripts/update_etf_master.py` - ETF Master 更新脚本（AI 分类板块）
+- `.github/workflows/update_etf_master.yml` - ETF Master 月度更新
 
 ## Configuration
 
@@ -78,7 +82,8 @@ Cloudflare R2（数据存储）：
 ## Deployment
 
 - **Web**: Cloudflare Workers（`workers/`）
-- **采集/分析**: GitHub Actions（每 2 小时，含 Playwright）
+- **采集/分析**: GitHub Actions（每 3 小时，含 Playwright）
+- **ETF Master 更新**: GitHub Actions（每月 1 号，含 AI 分类 + K 线）
 - **数据存储**: Cloudflare R2（`invest-data` bucket）
 - **URL**: https://etf.aurora-bots.com/
 
@@ -99,7 +104,10 @@ Cloudflare R2（数据存储）：
       "sector": "黄金",
       "desc": "投资上海黄金交易所黄金现货合约",
       "scope": "上海黄金交易所挂盘交易的黄金现货合约...",
-      "risk": "本基金属于黄金ETF..."
+      "risk": "本基金属于黄金ETF...",
+      "change_5d": 8.45,
+      "change_20d": 13.31,
+      "kline": [9.563, 9.363, ...]
     }
   },
   "sectors": {"黄金": ["518880", "159934", ...], ...},
@@ -219,6 +227,32 @@ uv run python -c "from src.config import settings; print(settings)"
 # 错误（会报 ModuleNotFoundError）
 python -m src.worker_simple
 python3 -c "..."
+```
+
+### 板块名一致性（单一数据源原则）
+
+板块名必须全链路一致，`etf_master.json` 的 `sector_list` 是唯一权威源（30个标准名）。
+
+**出过的问题**：板块合并后（人工智能→AI, 半导体→芯片, 恒生科技→港股），前端显示"暂无数据"，因为 AI 分析输出新名但 etf_master 还是旧名。
+
+**需要同步的 5 个位置**：
+1. `config/etf_master.json` → `sector_list`（权威源）
+2. `scripts/update_etf_master.py` → AI 分类 prompt 中的板块列表
+3. `src/analyzers/realtime.py` → 默认板块列表（fallback）
+4. `workers/src/types.ts` → `SECTOR_ALIAS`（别名安全网）
+5. `src/data/archive/` → 历史归档中的板块 key
+
+**改板块名时**：先改 etf_master，再同步其余 4 处，最后跑 `Update ETF Master` workflow 重建数据。
+
+### CI/CD 时序：先推代码再触发 workflow
+
+手动触发 GitHub Actions workflow 时，必须确保代码已推送到 remote：
+```
+# 正确顺序
+git push → 确认到达 → gh workflow run
+
+# 错误：先触发再推代码，workflow 跑的是旧代码
+gh workflow run → git push  ← 白跑一次
 ```
 
 ### Playwright 闭环验证
