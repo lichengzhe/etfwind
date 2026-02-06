@@ -26,17 +26,23 @@ cd workers && npx wrangler deploy
 
 # 本地开发 Workers
 cd workers && npx wrangler dev
+
+# TypeScript 类型检查
+cd workers && npx tsc --noEmit
+
+# 更新 ETF 主数据（从东方财富拉取最新 ETF，AI 重新分类板块）
+PYTHONPATH=. uv run python scripts/update_etf_master.py
 ```
 
 ## Architecture
 
 ```
 GitHub Actions
-├── Collect News (每小时) → news_raw.json → R2
+├── Collect News (collect_news.yml, 每小时 6:00-23:00 UTC+8) → news_raw.json → R2
 │   └── 含 Playwright，耗时 ~1.5分钟
 │
-└── Analyze News (采集后自动触发 / 手动)
-    └── 读取 news_raw.json → AI分析 → latest.json → R2
+└── Analyze News (analyze_news.yml, 采集后自动触发 / 手动)
+    └── 读取 news_raw.json → AI分析 → latest.json + review.json → R2
     └── 无需 Playwright，耗时 ~1分钟
 
 Cloudflare Workers ← 从 R2 读取 JSON 渲染页面
@@ -54,6 +60,8 @@ Cloudflare Workers ← 从 R2 读取 JSON 渲染页面
 - `scripts/update_etf_master.py` - ETF Master 更新脚本
 - `workers/src/index.ts` - Hono 路由
 - `workers/src/pages/Home.ts` - 首页渲染
+- `src/data/review.json` - 信号回测数据（1/3/7/20交易日胜率）
+- `scripts/update_etf_master.py` - ETF Master 更新脚本（AI 分类板块）
 
 ## Configuration
 
@@ -136,6 +144,24 @@ Cloudflare R2（数据存储）：
 }
 ```
 
+**review.json（信号回测数据）：**
+```json
+{
+  "板块名": {
+    "date": "2026-01-28",
+    "signal": "🟢买入",
+    "direction": "利好",
+    "heat": 5,
+    "reviews": {
+      "1d": {"result": "win", "change_pct": 1.2},
+      "3d": {"result": "loss", "change_pct": -0.5},
+      "7d": {"result": "pending"},
+      "20d": {"result": "pending"}
+    }
+  }
+}
+```
+
 **ETF 实时数据（/api/funds）：**
 ```json
 {
@@ -164,6 +190,7 @@ Cloudflare R2（数据存储）：
 - `GET /api/batch-sector-etfs?sectors=黄金,芯片` - 批量板块 ETF
 - `GET /api/etf-master` - ETF 主数据
 - `GET /api/global-indices` - 全球指标（美元、黄金、BTC、上证、纳指）含90天K线
+- `GET /api/review` - 信号回测数据
 - `GET /health` - 健康检查
 
 ## Tech Stack
@@ -231,6 +258,8 @@ step3 = "事件'{title}'相关的ETF代码是？从候选列表中选择：{etf_
 ```
 
 ## FOTH Matrix 信息处理方法论
+
+> 核心思路：新闻分析时，将信息按 Facts/Opinions 和 History/Latest 两个维度拆分，避免情绪污染事实判断。代码实现见 `src/analyzers/realtime.py` 中的 `format_history_context()`。
 
 **FOTH = Facts-Opinions × Time-Horizon**
 
