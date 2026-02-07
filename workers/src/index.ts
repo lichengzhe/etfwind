@@ -122,7 +122,7 @@ async function loadNews(r2: R2Bucket): Promise<NewsItem[]> {
 
 // 首页
 app.get('/', async (c) => {
-  return await withCache(c, c.req.url, 120, async () => {
+  return await withCache(c, c.req.url, 1800, async () => {
     const [data, etfMaster] = await Promise.all([
       loadData(c.env.R2),
       loadEtfMaster(c.env.R2),
@@ -133,7 +133,7 @@ app.get('/', async (c) => {
 
 // API: 分析数据
 app.get('/api/data', async (c) => {
-  return await withCache(c, c.req.url, 60, async () => {
+  return await withCache(c, c.req.url, 1800, async () => {
     const data = await loadData(c.env.R2)
     return c.json(data)
   })
@@ -141,7 +141,7 @@ app.get('/api/data', async (c) => {
 
 // API: ETF 实时行情
 app.get('/api/funds', async (c) => {
-  return await withCache(c, c.req.url, 30, async () => {
+  return await withCache(c, c.req.url, 300, async () => {
     const codes = c.req.query('codes')?.split(',').filter(Boolean) || []
     const funds = await fetchFunds(codes)
     return c.json(funds)
@@ -160,7 +160,7 @@ app.get('/api/kline', async (c) => {
 
 // API: 批量板块 ETF
 app.get('/api/batch-sector-etfs', async (c) => {
-  return await withCache(c, c.req.url, 60, async () => {
+  return await withCache(c, c.req.url, 300, async () => {
     const sectors = c.req.query('sectors')?.split(',').filter(Boolean) || []
     const etfMaster = await loadEtfMaster(c.env.R2)
 
@@ -203,130 +203,98 @@ app.get('/api/batch-sector-etfs', async (c) => {
 
 // API: ETF Master
 app.get('/api/etf-master', async (c) => {
-  return await withCache(c, c.req.url, 300, async () => {
+  return await withCache(c, c.req.url, 86400, async () => {
     const etfMaster = await loadEtfMaster(c.env.R2)
     return c.json(etfMaster)
   })
 })
 
-// API: 全球指标（含180天K线）
-app.get('/api/global-indices', async (c) => {
-  return await withCache(c, c.req.url, 300, async () => {
+// API: 市场总览（全球指标 + 商品周期，合并减少请求数）
+app.get('/api/market-overview', async (c) => {
+  return await withCache(c, c.req.url, 600, async () => {
     const indices: Record<string, any> = {}
-
-  // 东方财富K线：黄金、上证、美元
-  const emCodes: Record<string, { secid: string; name: string }> = {
-    usdcny: { secid: '133.USDCNH', name: '美元' },
-    gold: { secid: '101.GC00Y', name: '黄金' },
-    sh: { secid: '1.000001', name: '上证' },
-  }
-
-  try {
-    const fetches = Object.entries(emCodes).map(async ([key, { secid, name }]) => {
-      const resp = await fetch(
-        `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${secid}&fields1=f1,f2,f3&fields2=f51,f52&klt=101&fqt=1&end=20500101&lmt=180`
-      )
-      const data = await resp.json() as any
-      const klines = data?.data?.klines || []
-      const prices = klines.map((k: string) => parseFloat(k.split(',')[1]))
-      if (prices.length) {
-        indices[key] = { name, price: prices[prices.length - 1], kline: prices }
-      }
-    })
-    await Promise.all(fetches)
-  } catch (e) { console.error('东方财富K线API错误:', e) }
-
-  // Yahoo Finance：比特币180天K线
-  try {
-    const btcResp = await fetch(
-      'https://query1.finance.yahoo.com/v8/finance/chart/BTC-USD?interval=1d&range=6mo',
-      { headers: { 'User-Agent': 'Mozilla/5.0' } }
-    )
-    const btcData = await btcResp.json() as any
-    const closes = btcData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || []
-    const prices = closes.filter((c: any) => c != null)
-    if (prices.length) {
-      indices['btc'] = { name: 'BTC', price: prices[prices.length - 1], kline: prices }
-    }
-  } catch (e) { console.error('Yahoo BTC API错误:', e) }
-
-  // Yahoo Finance：纳斯达克180天K线
-  try {
-    const nasdaqResp = await fetch(
-      'https://query1.finance.yahoo.com/v8/finance/chart/%5EIXIC?interval=1d&range=6mo',
-      { headers: { 'User-Agent': 'Mozilla/5.0' } }
-    )
-    const nasdaqData = await nasdaqResp.json() as any
-    const closes = nasdaqData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || []
-    const prices = closes.filter((c: any) => c != null)
-    if (prices.length) {
-      indices['nasdaq'] = { name: '纳指', price: prices[prices.length - 1], kline: prices }
-    }
-  } catch (e) { console.error('Yahoo Finance API错误:', e) }
-
-    return c.json(indices)
-  })
-})
-
-// API: 商品周期轮动（黄金→白银→铜→石油→农产品）
-app.get('/api/commodity-cycle', async (c) => {
-  return await withCache(c, c.req.url, 300, async () => {
     const commodities: Record<string, any> = {}
 
-  // Yahoo Finance 获取商品数据
-  const yahooSymbols: Record<string, { symbol: string; name: string }> = {
-    gold: { symbol: 'GC=F', name: '黄金' },
-    silver: { symbol: 'SI=F', name: '白银' },
-    copper: { symbol: 'HG=F', name: '铜' },
-    oil: { symbol: 'CL=F', name: '原油' },
-    corn: { symbol: 'ZC=F', name: '玉米' },
-  }
-
-  // 并发获取所有商品数据
-  const fetches = Object.entries(yahooSymbols).map(async ([key, { symbol, name }]) => {
-    try {
-      const resp = await fetch(
-        `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=6mo`,
-        { headers: { 'User-Agent': 'Mozilla/5.0' } }
-      )
-      const data = await resp.json() as any
-      const closes = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || []
-      const prices = closes.filter((c: any) => c != null)
-      if (prices.length >= 20) {
-        const price = prices[prices.length - 1]
-        const price5d = prices[prices.length - 6] || prices[0]
-        const price20d = prices[prices.length - 21] || prices[0]
-        commodities[key] = {
-          name,
-          price,
-          kline: prices,
-          change_5d: ((price - price5d) / price5d * 100),
-          change_20d: ((price - price20d) / price20d * 100),
-        }
-      }
-    } catch (e) {
-      console.error(`Yahoo ${name} API错误:`, e)
+    // === 全球指标 ===
+    const emCodes: Record<string, { secid: string; name: string }> = {
+      usdcny: { secid: '133.USDCNH', name: '美元' },
+      gold: { secid: '101.GC00Y', name: '黄金' },
+      sh: { secid: '1.000001', name: '上证' },
     }
-  })
-  await Promise.all(fetches)
 
-  // 计算周期阶段
-  const order = ['gold', 'silver', 'copper', 'oil', 'corn']
-  const stageNames = ['黄金领涨期', '白银跟涨期', '铜价上涨期', '油价上涨期', '农产品补涨期']
+    // Yahoo 符号：BTC、纳指 + 商品周期
+    const yahooSymbols: Record<string, { symbol: string; name: string; target: 'indices' | 'commodities' }> = {
+      btc: { symbol: 'BTC-USD', name: 'BTC', target: 'indices' },
+      nasdaq: { symbol: '%5EIXIC', name: '纳指', target: 'indices' },
+      gold_c: { symbol: 'GC=F', name: '黄金', target: 'commodities' },
+      silver: { symbol: 'SI=F', name: '白银', target: 'commodities' },
+      copper: { symbol: 'HG=F', name: '铜', target: 'commodities' },
+      oil: { symbol: 'CL=F', name: '原油', target: 'commodities' },
+      corn: { symbol: 'ZC=F', name: '玉米', target: 'commodities' },
+    }
 
-  // 计算动量得分 (5日涨幅权重2 + 20日涨幅权重1)
-  const momentum = order
-    .filter(k => commodities[k])
-    .map(k => ({
-      key: k,
-      score: (commodities[k].change_5d || 0) * 2 + (commodities[k].change_20d || 0)
-    }))
-    .sort((a, b) => b.score - a.score)
+    // 并发：东方财富 + 所有 Yahoo 请求
+    const emFetches = Object.entries(emCodes).map(async ([key, { secid, name }]) => {
+      try {
+        const resp = await fetch(
+          `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${secid}&fields1=f1,f2,f3&fields2=f51,f52&klt=101&fqt=1&end=20500101&lmt=180`
+        )
+        const data = await resp.json() as any
+        const klines = data?.data?.klines || []
+        const prices = klines.map((k: string) => parseFloat(k.split(',')[1]))
+        if (prices.length) {
+          indices[key] = { name, price: prices[prices.length - 1], kline: prices }
+        }
+      } catch (e) { console.error(`东方财富 ${name} 错误:`, e) }
+    })
 
-  const leader = momentum[0]?.key || 'gold'
+    const yahooFetches = Object.entries(yahooSymbols).map(async ([key, { symbol, name, target }]) => {
+      try {
+        const resp = await fetch(
+          `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=6mo`,
+          { headers: { 'User-Agent': 'Mozilla/5.0' } }
+        )
+        const data = await resp.json() as any
+        const closes = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || []
+        const prices = closes.filter((c: any) => c != null)
+        if (!prices.length) return
+
+        const price = prices[prices.length - 1]
+        if (target === 'indices') {
+          indices[key] = { name, price, kline: prices }
+        } else {
+          if (prices.length >= 20) {
+            const price5d = prices[prices.length - 6] || prices[0]
+            const price20d = prices[prices.length - 21] || prices[0]
+            const realKey = key === 'gold_c' ? 'gold' : key
+            commodities[realKey] = {
+              name, price, kline: prices,
+              change_5d: ((price - price5d) / price5d * 100),
+              change_20d: ((price - price20d) / price20d * 100),
+            }
+          }
+        }
+      } catch (e) { console.error(`Yahoo ${name} 错误:`, e) }
+    })
+
+    await Promise.all([...emFetches, ...yahooFetches])
+
+    // === 商品周期计算 ===
+    const order = ['gold', 'silver', 'copper', 'oil', 'corn']
+    const stageNames = ['黄金领涨期', '白银跟涨期', '铜价上涨期', '油价上涨期', '农产品补涨期']
+    const momentum = order
+      .filter(k => commodities[k])
+      .map(k => ({
+        key: k,
+        score: (commodities[k].change_5d || 0) * 2 + (commodities[k].change_20d || 0)
+      }))
+      .sort((a, b) => b.score - a.score)
+
+    const leader = momentum[0]?.key || 'gold'
     const stage = order.indexOf(leader) + 1
 
     return c.json({
+      indices,
       commodities,
       cycle: {
         stage,
@@ -391,7 +359,7 @@ Sitemap: https://etf.aurora-bots.com/sitemap.xml`
 
 // API: 每日海报 SVG
 app.get('/api/poster', async (c) => {
-  return await withCache(c, c.req.url, 300, async () => {
+  return await withCache(c, c.req.url, 3600, async () => {
     const data = await loadData(c.env.R2)
     const { result, updated_at } = data
 

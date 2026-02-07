@@ -102,7 +102,7 @@ const etfMap = {
 
 async function loadCycleData() {
   try {
-    const resp = await fetch('/api/commodity-cycle');
+    const resp = await fetch('/api/market-overview');
     const data = await resp.json();
     renderStages(data);
     renderCommodities(data);

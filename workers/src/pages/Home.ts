@@ -34,14 +34,13 @@ async function loadIndicators() {
   const el = document.getElementById('indicators-grid');
   if (!el) return;
 
-  // 并发加载两个 API
-  const [indicesResp, cycleResp] = await Promise.all([
-    fetch('/api/global-indices').catch(() => null),
-    fetch('/api/commodity-cycle').catch(() => null)
-  ]);
-
-  const indicesData = indicesResp ? await indicesResp.json() : {};
-  const cycleData = cycleResp ? await cycleResp.json() : {};
+  let indicesData = {}, cycleData = {};
+  try {
+    const resp = await fetch('/api/market-overview');
+    const data = await resp.json();
+    indicesData = data.indices || {};
+    cycleData = data;
+  } catch (e) { console.error('市场总览加载失败', e); }
 
   // 全球指标配置
   const indicesOrder = ['usdcny', 'gold', 'btc', 'sh', 'nasdaq'];
