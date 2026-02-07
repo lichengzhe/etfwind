@@ -36,6 +36,7 @@ jobs:
           aws s3 sync s3://invest-data/archive/ src/data/archive/ || true
           aws s3 cp s3://invest-data/latest.json src/data/latest.json || true
           aws s3 cp s3://invest-data/review.json src/data/review.json || true
+          aws s3 cp s3://invest-data/etf_master.json config/etf_master.json || true
 
       - name: Run analysis
         env:
@@ -53,4 +54,3 @@ jobs:
           aws s3 cp src/data/news.json s3://invest-data/news.json || true
           aws s3 cp src/data/review.json s3://invest-data/review.json
           aws s3 sync src/data/archive/ s3://invest-data/archive/
-          aws s3 cp config/etf_master.json s3://invest-data/etf_master.json
