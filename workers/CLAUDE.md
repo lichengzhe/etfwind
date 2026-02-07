@@ -43,7 +43,8 @@ R2 Bucket (invest-data)
 - `GET /api/batch-sector-etfs?sectors=黄金,芯片` - 批量板块 ETF（合并实时+历史）
 - `GET /api/funds?codes=518880,512760` - ETF 实时行情
 - `GET /api/kline?codes=518880,512760` - ETF K线（90天收盘价+5日/20日涨跌，24h缓存）
-- `GET /api/etf-master` - ETF 主数据
+- `GET /api/market-overview` - 全球指标+商品周期（合并，10min缓存）
+- `GET /api/etf-master` - ETF 主数据（24h缓存）
 
 ## Key Files
 
