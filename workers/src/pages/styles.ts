@@ -80,7 +80,6 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
 .review-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .review-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; text-align: center; }
 .review-title { font-size: 12px; color: #64748b; margin-bottom: 4px; }
-.review-metric { font-size: 13px; color: #1f2937; }
 .review-metrics { display: flex; justify-content: center; gap: 8px; font-size: 13px; color: #1f2937; }
 .review-sub { font-size: 11px; color: #94a3b8; margin-top: 4px; }
 .review-legend { font-size: 11px; color: #94a3b8; margin-left: auto; white-space: nowrap; }
@@ -116,6 +115,7 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
   .sector-analysis { font-size: 11px; }
   .sector-card { overflow-x: hidden; }
   .review-grid { display: flex; gap: 8px; overflow-x: auto; }
+  .review-metrics { flex-direction: column; gap: 2px; }
   .etf-table { font-size: 12px; table-layout: fixed; }
   .etf-table thead { display: none; }
   .etf-table td:nth-child(1) { width: 41%; }
