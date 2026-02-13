@@ -122,7 +122,7 @@ async function loadNews(r2: R2Bucket): Promise<NewsItem[]> {
 
 // 首页
 app.get('/', async (c) => {
-  return await withCache(c, c.req.url, 1800, async () => {
+  return await withCache(c, c.req.url, 300, async () => {
     const [data, etfMaster] = await Promise.all([
       loadData(c.env.R2),
       loadEtfMaster(c.env.R2),
