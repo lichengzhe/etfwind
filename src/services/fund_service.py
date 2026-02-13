@@ -650,9 +650,9 @@ class FundService:
             change_5d = 0
             change_20d = 0
 
-            if len(closes) >= 6:
+            if len(closes) >= 6 and closes[-6]:
                 change_5d = round((today_close - closes[-6]) / closes[-6] * 100, 2)
-            if len(closes) >= 21:
+            if len(closes) >= 21 and closes[-21]:
                 change_20d = round((today_close - closes[-21]) / closes[-21] * 100, 2)
 
             kline_data = closes[-90:] if len(closes) >= 90 else closes
@@ -830,9 +830,9 @@ class FundService:
             change_5d = 0
             change_20d = 0
 
-            if len(closes) >= 6:
+            if len(closes) >= 6 and closes[-6]:
                 change_5d = round((today_close - closes[-6]) / closes[-6] * 100, 2)
-            if len(closes) >= 21:
+            if len(closes) >= 21 and closes[-21]:
                 change_20d = round((today_close - closes[-21]) / closes[-21] * 100, 2)
 
             kline_data = closes[-90:] if len(closes) >= 90 else closes

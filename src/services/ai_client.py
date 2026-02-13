@@ -55,7 +55,10 @@ class AIClient:
                     )
                     resp.raise_for_status()
                     data = resp.json()
-                    return data["content"][0]["text"].strip()
+                    content = data.get("content") or []
+                    if not content or not content[0].get("text"):
+                        raise ValueError(f"Unexpected API response: {data}")
+                    return content[0]["text"].strip()
             except Exception as e:
                 last_err = e
                 if attempt < len(backoffs):

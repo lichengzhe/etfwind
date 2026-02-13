@@ -86,7 +86,7 @@ async function loadIndicators() {
 
 async function checkHoliday() {
   try {
-    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '-');
+    const today = new Date().toISOString().slice(0, 10);
     const resp = await fetch('https://timor.tech/api/holiday/info/' + today);
     const data = await resp.json();
     isHoliday = data.type?.type !== 0; // type=0是工作日

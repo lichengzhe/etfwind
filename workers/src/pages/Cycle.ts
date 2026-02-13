@@ -129,7 +129,7 @@ function renderStages(data) {
   }).join('<span class="cycle-arrow">→</span>');
 
   el.innerHTML = html;
-  statusEl.innerHTML = '当前阶段：<strong>' + data.cycle.stage_name + '</strong> | 下一站：' + names[data.cycle.next];
+  if (statusEl) statusEl.textContent = '当前阶段：' + data.cycle.stage_name + ' | 下一站：' + (names[data.cycle.next] || data.cycle.next);
 }
 
 function renderCommodities(data) {

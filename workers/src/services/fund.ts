@@ -62,8 +62,8 @@ export async function fetchKline(codes: string[]): Promise<Record<string, { name
         const name = data?.data?.name || undefined
         results[code] = {
           name,
-          change_5d: closes.length >= 6 ? +((today - closes[closes.length - 6]) / closes[closes.length - 6] * 100).toFixed(2) : 0,
-          change_20d: closes.length >= 21 ? +((today - closes[closes.length - 21]) / closes[closes.length - 21] * 100).toFixed(2) : 0,
+          change_5d: closes.length >= 6 && closes[closes.length - 6] ? +((today - closes[closes.length - 6]) / closes[closes.length - 6] * 100).toFixed(2) : 0,
+          change_20d: closes.length >= 21 && closes[closes.length - 21] ? +((today - closes[closes.length - 21]) / closes[closes.length - 21] * 100).toFixed(2) : 0,
           kline: closes.slice(-90),
         }
       }
