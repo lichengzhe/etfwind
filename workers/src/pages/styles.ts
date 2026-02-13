@@ -110,7 +110,7 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
   .sector-analysis { font-size: 11px; }
   .sector-card { overflow-x: hidden; }
   .review-grid { display: flex; gap: 8px; overflow-x: auto; }
-  .review-metrics { gap: 4px; font-size: 12px; }
+  .review-metrics { gap: 4px; font-size: 12px; white-space: nowrap; }
   .m-hide { display: none; }
   .etf-table { font-size: 12px; table-layout: fixed; }
   .etf-table thead { display: none; }
