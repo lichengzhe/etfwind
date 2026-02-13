@@ -193,7 +193,7 @@ Cloudflare R2（数据存储）：
 ## API Endpoints
 
 **Workers (workers/src/index.ts)：**
-- `GET /` - 首页（30min缓存）
+- `GET /` - 首页（5min缓存）
 - `GET /news` - 新闻列表（支持 `?source=财联社` 过滤）
 - `GET /cycle` - 商品周期页面
 - `GET /api/data` - 分析数据 JSON（30min缓存）
