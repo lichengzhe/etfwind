@@ -155,19 +155,21 @@ Cloudflare R2（数据存储）：
 **review.json（信号回测数据）：**
 ```json
 {
-  "板块名": {
-    "date": "2026-01-28",
-    "signal": "🟢买入",
-    "direction": "利好",
-    "heat": 5,
-    "reviews": {
-      "1d": {"result": "win", "change_pct": 1.2},
-      "3d": {"result": "loss", "change_pct": -0.5},
-      "7d": {"result": "pending"},
-      "20d": {"result": "pending"}
+  "signals": [
+    {
+      "date": "2026-02-05",
+      "sector": "黄金",
+      "type": "overall",
+      "signal": "🟢买入",
+      "etf_code": "518880",
+      "entry_price": 10.523
     }
-  }
+  ],
+  "updated_at": "2026-02-11T10:00:00+08:00"
 }
+```
+信号按 `(date, sector, etf_code)` 去重，板块名归一化到 etf_master 标准名。
+记录买入/观望/回避三种信号，复盘统计时买入看涨为胜、回避看跌为胜。
 ```
 
 **ETF 实时数据（/api/funds）：**

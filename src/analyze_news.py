@@ -117,7 +117,7 @@ async def run():
     logger.info(f"构建趋势: {len(sector_trends)} 个板块")
 
     # 信号复盘
-    review = await update_review(result, beijing_tz)
+    review = await update_review(result, beijing_tz, etf_master=master if master_file.exists() else None)
 
     # 过热预警（P1）：基于热度、方向、置信度的轻量规则
     overheat = None

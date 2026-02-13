@@ -82,6 +82,7 @@ header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135de
 .review-title { font-size: 12px; color: #64748b; margin-bottom: 4px; }
 .review-metric { font-size: 13px; color: #1f2937; }
 .review-sub { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+.review-legend { font-size: 11px; color: #94a3b8; text-align: center; margin-top: 6px; }
 .overheat-card { border-left: 3px solid #f59e0b; background: #fffbeb; }
 .overheat-badge { font-size: 11px; padding: 2px 6px; border-radius: 3px; background: #fde68a; color: #92400e; }
 .overheat-badge.过热 { background: #fecaca; color: #b91c1c; }

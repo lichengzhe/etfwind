@@ -60,17 +60,36 @@ def save_review_data(data: dict):
     REVIEW_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2))
 
 
-async def update_review(result: dict, beijing_tz) -> dict:
+def _build_code_to_sector(etf_master: dict | None) -> dict[str, str]:
+    """从 etf_master 构建 ETF代码→标准板块名 的反查表"""
+    if not etf_master:
+        return {}
+    mapping: dict[str, str] = {}
+    for sector_name, codes in etf_master.get("sectors", {}).items():
+        for code in codes:
+            mapping[code] = sector_name
+    return mapping
+
+
+async def update_review(result: dict, beijing_tz, *, etf_master: dict | None = None) -> dict:
     """更新信号复盘数据并返回汇总指标"""
     data = load_review_data()
     signals: list[dict] = data.get("signals", [])
 
     now = datetime.now(beijing_tz)
 
-    # 添加今日信号（只记录买入信号）
+    # 构建去重集合（基于已有信号）
+    existing_keys: set[tuple[str, str, str]] = set()
+    for s in signals:
+        existing_keys.add((s.get("date", ""), s.get("sector", ""), s.get("etf_code", "")))
+
+    # ETF代码→标准板块名 反查表
+    code_to_sector = _build_code_to_sector(etf_master)
+
+    # 添加今日信号（记录所有信号类型：买入/观望/回避）
     today = now.strftime("%Y-%m-%d")
     sectors = result.get("sectors", [])
-    today_entries = []
+    new_count = 0
     for sector in sectors:
         etfs = sector.get("etfs") or []
         if not etfs:
@@ -80,19 +99,27 @@ async def update_review(result: dict, beijing_tz) -> dict:
         if not code or price is None:
             continue
         signal_text = sector.get("signal", "")
-        if "买入" not in signal_text:
+        if not signal_text:
             continue
-        today_entries.append({
+        # 板块名归一化：优先用 etf_master 的标准名
+        sector_name = code_to_sector.get(code, sector.get("name", ""))
+        # 去重：同一天同板块同ETF只记一次
+        key = (today, sector_name, code)
+        if key in existing_keys:
+            continue
+        existing_keys.add(key)
+        signals.append({
             "date": today,
-            "sector": sector.get("name"),
+            "sector": sector_name,
             "type": "overall",
             "signal": signal_text,
             "etf_code": code,
             "entry_price": price,
         })
+        new_count += 1
 
-    if today_entries:
-        signals.extend(today_entries)
+    if new_count:
+        logger.info(f"📊 新增 {new_count} 条信号")
 
     # 只保留最近90天的信号，防止无限增长
     cutoff = (now - timedelta(days=90)).strftime("%Y-%m-%d")
@@ -102,13 +129,18 @@ async def update_review(result: dict, beijing_tz) -> dict:
     data["updated_at"] = now.isoformat()
     save_review_data(data)
 
-    # 计算复盘指标（1/3/7/20 交易日）
+    # 计算复盘指标（1/3/7/20 交易日），按信号类型分组
     horizons = [1, 3, 7, 20]
     summary = {
         "as_of": now.isoformat(),
         "horizons": {},
+        "by_signal": {},
         "benchmark": {"name": "沪深300", "secid": "1.000300"},
     }
+
+    # 只对买入和回避信号计算胜率（观望不参与）
+    buy_signals = [s for s in signals if "买入" in s.get("signal", "")]
+    avoid_signals = [s for s in signals if "回避" in s.get("signal", "")]
 
     benchmark_kline = await fund_service.get_kline_date_map(secid="1.000300")
     bench_dates = [d for d, _ in benchmark_kline]
@@ -126,10 +158,11 @@ async def update_review(result: dict, beijing_tz) -> dict:
         results = await asyncio.gather(*(fetch_kline(c) for c in codes))
         code_to_kline = dict(zip(codes, results))
 
-    for h in horizons:
+    def _calc_horizon(sig_list: list[dict], h: int, *, invert: bool = False) -> dict:
+        """计算某组信号在 h 个交易日后的胜率。invert=True 时跌为胜（回避信号）"""
         returns = []
         excess = []
-        for s in signals:
+        for s in sig_list:
             entry_date = s.get("date", "")
             code = s.get("etf_code")
             kline = code_to_kline.get(code, [])
@@ -154,16 +187,25 @@ async def update_review(result: dict, beijing_tz) -> dict:
                     bret = (bench_closes[bidx + h] - bench_closes[bidx]) / bench_closes[bidx] * 100
                     excess.append(ret - bret)
         if returns:
-            win_rate = sum(1 for r in returns if r > 0) / len(returns) * 100
+            win_rate = sum(1 for r in returns if (r < 0 if invert else r > 0)) / len(returns) * 100
             avg_ret = sum(returns) / len(returns)
-            summary["horizons"][str(h)] = {
+            return {
                 "count": len(returns),
                 "win_rate": round(win_rate, 1),
                 "avg_return": round(avg_ret, 2),
                 "avg_excess": round(sum(excess) / len(excess), 2) if excess else 0,
             }
-        else:
-            summary["horizons"][str(h)] = {"count": 0, "win_rate": 0, "avg_return": 0, "avg_excess": 0}
+        return {"count": 0, "win_rate": 0, "avg_return": 0, "avg_excess": 0}
+
+    # 总体统计（买入信号，向后兼容）
+    for h in horizons:
+        summary["horizons"][str(h)] = _calc_horizon(buy_signals, h)
+
+    # 按信号类型分组统计
+    if buy_signals:
+        summary["by_signal"]["买入"] = {str(h): _calc_horizon(buy_signals, h) for h in horizons}
+    if avoid_signals:
+        summary["by_signal"]["回避"] = {str(h): _calc_horizon(avoid_signals, h, invert=True) for h in horizons}
 
     return summary
 

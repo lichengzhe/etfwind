@@ -370,6 +370,7 @@ export function renderHome(data: LatestData, etfMaster: Record<string, any>): st
           </div>
         `).join('')}
       </div>
+      <div class="review-legend">胜率=信号猜对比例 · 均值=平均收益率 · 超额=跑赢沪深300的部分</div>
     </div>
     ` : ''}
 
