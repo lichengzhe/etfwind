@@ -357,20 +357,22 @@ export function renderHome(data: LatestData, etfMaster: Record<string, any>): st
     <div class="card review-card">
       <div class="card-header">
         <h2>信号复盘</h2>
+        <span class="review-legend">胜率=猜对比例 · 均值=平均收益 · 超额=跑赢沪深300</span>
         <span class="meta">${formatTime(review.as_of)}</span>
       </div>
       <div class="review-grid">
         ${Object.entries(review.horizons || {}).map(([k, v]: any) => `
           <div class="review-item">
             <div class="review-title">${k}日</div>
-            <div class="review-metric">胜率 ${v.win_rate}%</div>
-            <div class="review-metric">均值 ${v.avg_return}%</div>
-            ${typeof v.avg_excess === 'number' ? `<div class="review-metric">超额 ${v.avg_excess}%</div>` : ''}
+            <div class="review-metrics">
+              <span>胜率 ${v.win_rate}%</span>
+              <span>均值 ${v.avg_return}%</span>
+              ${typeof v.avg_excess === 'number' ? `<span>超额 ${v.avg_excess}%</span>` : ''}
+            </div>
             <div class="review-sub">${v.count} 条</div>
           </div>
         `).join('')}
       </div>
-      <div class="review-legend">胜率=信号猜对比例 · 均值=平均收益率 · 超额=跑赢沪深300的部分</div>
     </div>
     ` : ''}
 
