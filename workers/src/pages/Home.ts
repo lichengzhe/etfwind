@@ -357,7 +357,7 @@ export function renderHome(data: LatestData, etfMaster: Record<string, any>): st
     <div class="card review-card">
       <div class="card-header">
         <h2>信号复盘</h2>
-        <span class="review-legend">胜率=猜对比例 · 均值=该周期信号平均收益 · 超额=跑赢沪深300</span>
+        <span class="review-legend">胜率=猜对比例 · 均值=平均涨跌 · 超额=跑赢沪深300</span>
       </div>
       <div class="review-grid">
         ${Object.entries(review.horizons || {}).map(([k, v]: any) => `
