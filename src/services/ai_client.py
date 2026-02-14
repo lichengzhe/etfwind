@@ -56,9 +56,26 @@ class AIClient:
                     resp.raise_for_status()
                     data = resp.json()
                     content = data.get("content") or []
-                    if not content or not content[0].get("text"):
+                    if not content:
                         raise ValueError(f"Unexpected API response: {data}")
-                    return content[0]["text"].strip()
+
+                    # MiniMax returns [{type: "thinking", ...}, {type: "text", text: "..."}]
+                    # Anthropic returns [{type: "text", text: "..."}]
+                    # Find the item with type === "text"
+                    text_item = None
+                    for item in content:
+                        if item.get("type") == "text" and item.get("text"):
+                            text_item = item
+                            break
+
+                    if not text_item:
+                        # Fallback: try content[0].text for standard Anthropic format
+                        text_item = content[0]
+
+                    if not text_item.get("text"):
+                        raise ValueError(f"Unexpected API response: {data}")
+
+                    return text_item["text"].strip()
             except Exception as e:
                 last_err = e
                 if attempt < len(backoffs):
