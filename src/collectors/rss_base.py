@@ -34,9 +34,12 @@ class RSSCollector(BaseCollector):
             return []
 
     def _sanitize_xml(self, xml_content: str) -> str:
-        """清理不规范的 RSS XML（如未转义的 & 符号）"""
+        """清理不规范的 RSS XML（未转义 & 符号、XML 禁止的控制字符）"""
         # 将未转义的 & 替换为 &amp;，跳过已合法的实体引用
-        return re.sub(r'&(?!(?:amp|lt|gt|apos|quot|#\d+|#x[0-9a-fA-F]+);)', '&amp;', xml_content)
+        xml_content = re.sub(r'&(?!(?:amp|lt|gt|apos|quot|#\d+|#x[0-9a-fA-F]+);)', '&amp;', xml_content)
+        # 移除 XML 1.0 禁止的控制字符（保留 \t \n \r）
+        xml_content = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', xml_content)
+        return xml_content
 
     def _parse_rss(self, xml_content: str) -> list[NewsItem]:
         """解析 RSS XML"""
