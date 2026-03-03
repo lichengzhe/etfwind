@@ -103,7 +103,7 @@ def parse_json_with_repair(text: str, *, fix_newlines: bool = False) -> dict[str
         return json.loads(raw)
     except json.JSONDecodeError as e:
         logger.warning(f"JSON 解析失败，尝试修复: {e}")
-        repaired = raw.replace("“", '"').replace("”", '"')
+        repaired = raw.replace("\u201c", '"').replace("\u201d", '"')
         repaired = re.sub(r",(\s*[}\]])", r"\1", repaired)
         if fix_newlines:
             def _fix_newlines(m: re.Match) -> str:

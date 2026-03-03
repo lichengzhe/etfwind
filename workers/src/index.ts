@@ -133,7 +133,7 @@ app.get('/', async (c) => {
 
 // API: 分析数据
 app.get('/api/data', async (c) => {
-  return await withCache(c, c.req.url, 1800, async () => {
+  return await withCache(c, c.req.url, 900, async () => {
     const data = await loadData(c.env.R2)
     return c.json(data)
   })

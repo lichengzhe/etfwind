@@ -56,8 +56,8 @@ Cloudflare Workers ← 从 R2 读取 JSON 渲染页面
 - `src/collect_news.py` - 新闻采集模块
 - `src/analyze_news.py` - AI 分析模块
 - `src/worker_simple.py` - 共享逻辑（归档、历史、ETF匹配）
-- `src/analyzers/realtime.py` - Claude AI 分析
-- `src/collectors/` - 17个新闻采集器（含央媒/台媒，通过 include_media=True 启用）
+- `src/analyzers/realtime.py` - AI 分析
+- `src/collectors/` - 13个新闻采集器（含央媒/台媒，通过 include_media=True 启用）
 - `src/services/fund_service.py` - ETF 数据服务
 - `src/notify/` - 通知推送模块（企业微信）
 - `config/etf_master.json` - ETF 主数据（699个ETF，30个板块）
@@ -70,9 +70,9 @@ Cloudflare Workers ← 从 R2 读取 JSON 渲染页面
 ## Configuration
 
 环境变量（.env）：
-- `CLAUDE_API_KEY`: Claude API 密钥（必需）
-- `CLAUDE_BASE_URL`: API 地址，当前中转 `code.newcli.com/claude/droid`
-- `CLAUDE_MODEL`: 模型名称，默认 claude-sonnet-4-6
+- `CLAUDE_API_KEY`: AI API 密钥（当前 Kimi For Coding）
+- `CLAUDE_BASE_URL`: API 地址，当前 `api.kimi.com/coding`（Anthropic 兼容接口）
+- `CLAUDE_MODEL`: 模型名称，当前 `kimi-k2.5`
 - `WECHAT_WEBHOOK_URL`: 企业微信 Webhook URL（可选，配置后自动推送）
 
 Cloudflare R2（数据存储）：
@@ -82,7 +82,7 @@ Cloudflare R2（数据存储）：
 ## Deployment
 
 - **Web**: Cloudflare Workers（`workers/`）
-- **采集/分析**: GitHub Actions（每 2 小时 6:00-20:00 UTC+8，含 Playwright）
+- **采集/分析**: GitHub Actions（每小时 6:00-20:00 UTC+8，含 Playwright）
 - **ETF Master 更新**: GitHub Actions（每月 1 号，含 AI 分类 + K 线）
 - **数据存储**: Cloudflare R2（`invest-data` bucket）
 - **URL**: https://etf.aurora-bots.com/

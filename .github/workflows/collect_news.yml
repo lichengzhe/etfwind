@@ -2,9 +2,9 @@ name: Collect News
 
 on:
   schedule:
-    # 6:00-20:00 (UTC+8) 每2小时，即 UTC 22, 0, 2, 4, 6, 8, 10, 12
+    # 6:00-20:00 (UTC+8) 每小时，即 UTC 22, 0-12
     - cron: '0 22 * * *'
-    - cron: '0 0-12/2 * * *'
+    - cron: '0 0-12 * * *'
   workflow_dispatch:
 
 jobs:
