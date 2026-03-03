@@ -27,26 +27,18 @@ _media_playwright_collectors = []
 try:
     from .playwright_base import PlaywrightCollector, close_browser
     from .cls_playwright import CLSPlaywrightCollector
-    from .sina_playwright import SinaPlaywrightCollector
     from .eastmoney_playwright import EastMoneyPlaywrightCollector
     from .wallstreetcn import WallStreetCNCollector
-    from .jin10 import Jin10Collector
     from .xinhua_playwright import XinhuaPlaywrightCollector
     from .cctv_playwright import CCTVPlaywrightCollector
-    from .chinatimes_playwright import ChinaTimesPlaywrightCollector
-    from .udn_playwright import UDNPlaywrightCollector
     _playwright_collectors = [
         CLSPlaywrightCollector,
-        SinaPlaywrightCollector,
         EastMoneyPlaywrightCollector,
         WallStreetCNCollector,
-        Jin10Collector,
     ]
     _media_playwright_collectors = [
         XinhuaPlaywrightCollector,
         CCTVPlaywrightCollector,
-        ChinaTimesPlaywrightCollector,
-        UDNPlaywrightCollector,
     ]
 except ImportError:
     close_browser = None
@@ -82,7 +74,7 @@ class NewsAggregator:
         self.playwright_collectors = []
         if include_playwright and _playwright_collectors:
             self.playwright_collectors = [c() for c in _playwright_collectors]
-        # 媒体 Playwright 采集器
+        # 媒体 Playwright 采集器（新华社、央视）
         if include_media and include_playwright and _media_playwright_collectors:
             self.playwright_collectors.extend([c() for c in _media_playwright_collectors])
 

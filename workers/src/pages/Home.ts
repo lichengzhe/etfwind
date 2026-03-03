@@ -281,9 +281,10 @@ function renderSectorCard(sector: any, etfMaster: Record<string, any>, trend?: {
 export function renderHome(data: LatestData, etfMaster: Record<string, any>): string {
   const { result, sector_trends, review, updated_at, news_count, source_stats } = data
 
-  // Source 按权威度排序
-  const sourceOrder = ['Bloomberg', 'WSJ', 'CNBC', '财联社', '财联社电报', '新浪财经', '东方财富', '东财快讯', '新浪7x24', '金十数据', '华尔街见闻']
+  // Source 按权威度排序，过滤掉数量极少的来源（< 5 条）
+  const sourceOrder = ['Bloomberg', 'CNBC', '财联社', '财联社电报', '新浪财经', '东方财富', '东财快讯', '华尔街见闻', '新华社', '央视新闻', 'BBC', 'TechCrunch', '虎嗅', '环球网', '自由時報']
   const sourceStatsHtml = Object.entries(source_stats)
+    .filter(([, count]) => count >= 5)
     .sort((a, b) => {
       const ia = sourceOrder.indexOf(a[0])
       const ib = sourceOrder.indexOf(b[0])

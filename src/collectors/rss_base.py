@@ -1,5 +1,6 @@
 """RSS 采集器基类"""
 
+import re
 from datetime import datetime
 from typing import Optional
 from email.utils import parsedate_to_datetime
@@ -32,9 +33,15 @@ class RSSCollector(BaseCollector):
             logger.error(f"{self.SOURCE_NAME} RSS 采集失败: {e}")
             return []
 
+    def _sanitize_xml(self, xml_content: str) -> str:
+        """清理不规范的 RSS XML（如未转义的 & 符号）"""
+        # 将未转义的 & 替换为 &amp;，跳过已合法的实体引用
+        return re.sub(r'&(?!(?:amp|lt|gt|apos|quot|#\d+|#x[0-9a-fA-F]+);)', '&amp;', xml_content)
+
     def _parse_rss(self, xml_content: str) -> list[NewsItem]:
         """解析 RSS XML"""
         import xml.etree.ElementTree as ET
+        xml_content = self._sanitize_xml(xml_content)
 
         items = []
         try:
