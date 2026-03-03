@@ -11,7 +11,7 @@ AI 驱动的 ETF 投资风向分析工具。自动采集财经新闻，通过 AI
 ## 功能
 
 - 13个新闻源自动采集（财联社、东方财富、新浪、Bloomberg、CNBC、BBC、新华社、央视等）
-- Kimi AI 分析市场动态，输出板块研判 + 风险提示
+- Claude AI 分析市场动态，输出板块研判 + 风险提示
 - 置信度评分 + 一段式综合分析
 - 智能匹配板块 ETF，展示实时行情 + 90日走势
 - 商品周期轮动指标（黄金→白银→铜→石油→农产品）
@@ -40,7 +40,7 @@ Cloudflare Workers ← 读取 R2 渲染页面
 | 组件 | 技术 |
 |------|------|
 | 采集 | Python + httpx + Playwright |
-| AI | Kimi API（Anthropic 兼容接口）|
+| AI | Claude API（httpx，Anthropic 兼容接口）|
 | 前端 | Cloudflare Workers + Hono |
 | 存储 | Cloudflare R2 |
 | 数据 | 东方财富 API |
@@ -48,7 +48,7 @@ Cloudflare Workers ← 读取 R2 渲染页面
 **为什么选这套？** 几乎零成本：
 - GitHub Actions 免费额度够用
 - Cloudflare Workers/R2 免费额度够用
-- Kimi For Coding 订阅制，每小时调用无压力
+- Claude API 中转，每小时调用一次，成本可控
 
 ## 技术亮点
 
@@ -137,9 +137,9 @@ cd workers && npm run deploy
 ## 环境变量
 
 ```bash
-CLAUDE_API_KEY=sk-kimi-xxx    # AI API 密钥（Kimi For Coding）
-CLAUDE_BASE_URL=https://api.kimi.com/coding  # 支持 Anthropic 兼容接口
-CLAUDE_MODEL=kimi-k2.5        # 模型名称
+CLAUDE_API_KEY=sk-ant-xxx     # Claude API 密钥（或中转 key）
+CLAUDE_BASE_URL=https://...   # 可选，支持 Anthropic 兼容中转
+CLAUDE_MODEL=claude-sonnet-4-6 # 模型名称
 WECHAT_WEBHOOK_URL=https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx  # 可选，企业微信推送
 ```
 
