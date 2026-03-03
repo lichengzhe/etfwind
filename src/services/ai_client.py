@@ -53,6 +53,8 @@ class AIClient:
                         },
                         json=payload,
                     )
+                    if not resp.is_success:
+                        logger.error(f"API error {resp.status_code}: {resp.text[:500]}")
                     resp.raise_for_status()
                     data = resp.json()
                     content = data.get("content") or []
