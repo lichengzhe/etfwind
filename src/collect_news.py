@@ -19,7 +19,7 @@ async def collect():
     logger.info("开始采集新闻")
     logger.info("=" * 50)
 
-    agg = NewsAggregator(include_international=True, include_playwright=True)
+    agg = NewsAggregator(include_international=True, include_playwright=True, include_media=True)
     try:
         news = await agg.collect_all()
         source_stats = dict(Counter(item.source for item in news.items))

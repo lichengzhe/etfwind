@@ -13,7 +13,7 @@ class Settings(BaseSettings):
         default="https://api.anthropic.com", alias="CLAUDE_BASE_URL"
     )
     claude_model: str = Field(
-        default="MiniMax-M2.5", alias="CLAUDE_MODEL"
+        default="claude-sonnet-4-6", alias="CLAUDE_MODEL"
     )
 
     # 企业微信推送配置

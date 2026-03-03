@@ -18,9 +18,12 @@ from .techcrunch import TechCrunchCollector
 from .bbc import BBCCollector
 from .huxiu import HuxiuCollector
 from .stcn import StcnCollector
+from .ltn import LTNCollector
+from .huanqiu import HuanqiuCollector
 
 # Playwright 采集器（可选）
 _playwright_collectors = []
+_media_playwright_collectors = []
 try:
     from .playwright_base import PlaywrightCollector, close_browser
     from .cls_playwright import CLSPlaywrightCollector
@@ -28,12 +31,22 @@ try:
     from .eastmoney_playwright import EastMoneyPlaywrightCollector
     from .wallstreetcn import WallStreetCNCollector
     from .jin10 import Jin10Collector
+    from .xinhua_playwright import XinhuaPlaywrightCollector
+    from .cctv_playwright import CCTVPlaywrightCollector
+    from .chinatimes_playwright import ChinaTimesPlaywrightCollector
+    from .udn_playwright import UDNPlaywrightCollector
     _playwright_collectors = [
         CLSPlaywrightCollector,
         SinaPlaywrightCollector,
         EastMoneyPlaywrightCollector,
         WallStreetCNCollector,
         Jin10Collector,
+    ]
+    _media_playwright_collectors = [
+        XinhuaPlaywrightCollector,
+        CCTVPlaywrightCollector,
+        ChinaTimesPlaywrightCollector,
+        UDNPlaywrightCollector,
     ]
 except ImportError:
     close_browser = None
@@ -43,7 +56,8 @@ except ImportError:
 class NewsAggregator:
     """新闻聚合器"""
 
-    def __init__(self, include_international: bool = True, include_playwright: bool = True):
+    def __init__(self, include_international: bool = True, include_playwright: bool = True,
+                 include_media: bool = False):
         self.collectors: list[BaseCollector] = [
             CLSNewsCollector(),
             EastMoneyCollector(),
@@ -58,10 +72,19 @@ class NewsAggregator:
                 BBCCollector(),
                 HuxiuCollector(),
             ])
+        # 媒体源（央媒 + 台媒）
+        if include_media:
+            self.collectors.extend([
+                LTNCollector(),      # 自由時報 RSS
+                HuanqiuCollector(),  # 环球网 HTML
+            ])
         # Playwright 采集器
         self.playwright_collectors = []
         if include_playwright and _playwright_collectors:
             self.playwright_collectors = [c() for c in _playwright_collectors]
+        # 媒体 Playwright 采集器
+        if include_media and include_playwright and _media_playwright_collectors:
+            self.playwright_collectors.extend([c() for c in _media_playwright_collectors])
 
     async def collect_all(self) -> NewsCollection:
         """并发采集所有来源的新闻"""
@@ -126,5 +149,7 @@ __all__ = [
     "BloombergCollector",
     "TechCrunchCollector",
     "BBCCollector",
+    "LTNCollector",
+    "HuanqiuCollector",
     "NewsAggregator",
 ]

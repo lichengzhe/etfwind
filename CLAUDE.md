@@ -57,7 +57,7 @@ Cloudflare Workers ← 从 R2 读取 JSON 渲染页面
 - `src/analyze_news.py` - AI 分析模块
 - `src/worker_simple.py` - 共享逻辑（归档、历史、ETF匹配）
 - `src/analyzers/realtime.py` - Claude AI 分析
-- `src/collectors/` - 11个新闻采集器（含证券时报）
+- `src/collectors/` - 17个新闻采集器（含央媒/台媒，通过 include_media=True 启用）
 - `src/services/fund_service.py` - ETF 数据服务
 - `src/notify/` - 通知推送模块（企业微信）
 - `config/etf_master.json` - ETF 主数据（699个ETF，30个板块）
@@ -71,8 +71,8 @@ Cloudflare Workers ← 从 R2 读取 JSON 渲染页面
 
 环境变量（.env）：
 - `CLAUDE_API_KEY`: Claude API 密钥（必需）
-- `CLAUDE_BASE_URL`: API 地址，当前中转 `zenmux.openclawfarm.com/api/anthropic`
-- `CLAUDE_MODEL`: 模型名称，默认 claude-opus-4-6
+- `CLAUDE_BASE_URL`: API 地址，当前中转 `code.newcli.com/claude/droid`
+- `CLAUDE_MODEL`: 模型名称，默认 claude-sonnet-4-6
 - `WECHAT_WEBHOOK_URL`: 企业微信 Webhook URL（可选，配置后自动推送）
 
 Cloudflare R2（数据存储）：
