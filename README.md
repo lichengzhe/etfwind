@@ -40,7 +40,7 @@ Cloudflare Workers ← 读取 R2 渲染页面
 | 组件 | 技术 |
 |------|------|
 | 采集 | Python + httpx + Playwright |
-| AI | Claude API（httpx，Anthropic 兼容接口）|
+| AI | Kimi K2.5（httpx，Anthropic 兼容接口）|
 | 前端 | Cloudflare Workers + Hono |
 | 存储 | Cloudflare R2 |
 | 数据 | 东方财富 API |
@@ -48,7 +48,7 @@ Cloudflare Workers ← 读取 R2 渲染页面
 **为什么选这套？** 几乎零成本：
 - GitHub Actions 免费额度够用
 - Cloudflare Workers/R2 免费额度够用
-- Claude API 中转，每小时调用一次，成本可控
+- Kimi K2.5 订阅，每小时调用一次，成本可控
 
 ## 技术亮点
 
@@ -137,9 +137,9 @@ cd workers && npm run deploy
 ## 环境变量
 
 ```bash
-CLAUDE_API_KEY=sk-ant-xxx     # Claude API 密钥（或中转 key）
-CLAUDE_BASE_URL=https://...   # 可选，支持 Anthropic 兼容中转
-CLAUDE_MODEL=claude-sonnet-4-6 # 模型名称
+CLAUDE_API_KEY=sk-kimi-xxx    # AI API 密钥（支持 Anthropic 兼容格式的 API）
+CLAUDE_BASE_URL=https://...   # API 地址（当前 api.kimi.com/coding）
+CLAUDE_MODEL=kimi-k2.5        # 模型名称
 WECHAT_WEBHOOK_URL=https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx  # 可选，企业微信推送
 ```
 

@@ -70,9 +70,9 @@ Cloudflare Workers ← 从 R2 读取 JSON 渲染页面
 ## Configuration
 
 环境变量（.env）：
-- `CLAUDE_API_KEY`: AI API 密钥（当前 newcli-droid Claude 中转）
-- `CLAUDE_BASE_URL`: API 地址，当前 `code.newcli.com/claude/droid`
-- `CLAUDE_MODEL`: 模型名称，当前 `claude-sonnet-4-6`
+- `CLAUDE_API_KEY`: AI API 密钥（当前 Kimi For Coding 订阅）
+- `CLAUDE_BASE_URL`: API 地址，当前 `api.kimi.com/coding`（兼容 Anthropic 格式）
+- `CLAUDE_MODEL`: 模型名称，当前 `kimi-k2.5`
 - `WECHAT_WEBHOOK_URL`: 企业微信 Webhook URL（可选，配置后自动推送）
 
 Cloudflare R2（数据存储）：
@@ -210,7 +210,7 @@ Cloudflare R2（数据存储）：
 
 **前端：** Cloudflare Workers / Hono / TypeScript
 
-**AI：** Claude API (httpx 直接调用)
+**AI：** Kimi K2.5 (httpx 直接调用，Anthropic 兼容格式)
 
 **数据源：** 东方财富 API
 
